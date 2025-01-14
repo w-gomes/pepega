@@ -1,0 +1,117 @@
+use chrono::{DateTime, Utc};
+use clap::{Parser, Subcommand};
+use sqlx::{query_file, query_file_as, FromRow, PgPool};
+use std::env;
+
+#[derive(Parser)]
+struct Args {
+    #[command(subcommand)]
+    cmd: Option<Command>,
+}
+
+#[derive(Subcommand)]
+enum Command {
+    Add { m: Mod },
+    Update,
+}
+
+fn cli() -> Command {
+    let matches = Command::new("pepega")
+        .about("A mod repo")
+        .subcommand_required(true)
+        .arg_required_else_help(true)
+        .subcommand(
+            Command::new("add")
+                .short_flag('A')
+                .long_flag("add")
+                .about("Add a new mod to the database.")
+                .arg(
+                    Arg::new("name")
+                        .short('n')
+                        .long("name")
+                        .help("set a name to the new mod")
+                        .action(ArgAction::Set)
+                        .num_args(1),
+                )
+                .arg(
+                    Arg::new("status")
+                        .short('s')
+                        .long("status")
+                        .help("set a status to the new mod")
+                        .action(ArgAction::Set)
+                        .num_args(1),
+                )
+                .arg(
+                    Arg::new("creator")
+                        .short('c')
+                        .long("creator")
+                        .help("set a creator to the new mod")
+                        .action(ArgAction::Set)
+                        .num_args(1),
+                ),
+        )
+        .subcommand()
+        .get_matches();
+
+    match matches.subcommand() {}
+}
+
+enum Status {
+    Installed,
+    Uninstalled,
+    Waiting,
+}
+
+#[derive(FromRow)]
+struct Mod {
+    id: i64,
+    name: String,
+    metadata: String,
+    status: Status,
+    installed_on: DateTime<Utc>,
+    updated_on: DateTime<Utc>,
+    creator_id: i64,
+}
+
+#[tokio::main(flavor = "current_thread")]
+async fn main() -> anyhow::Result<()> {
+    let args = Args::parse();
+    let pool = PgPool::connect(&env::var("DATABASE_URL")?).await?;
+
+    match args.cmd {
+        /*
+         * We must enter name, status and creator.
+         * installed_on and updated_on will be picked automatically
+         * by the system.
+         *
+         * metadata is optional, we use a flag for it.
+         */
+        Some(Command::Add { m }) => {
+            println!("Adding a new mod");
+            let m_id = add_mod(&pool, m).await?;
+            println!("Added new mod with id {m_id}");
+        }
+        Some(Command::Update {}) => {
+            println!("Updating mod");
+        }
+        None => {
+            println!("Listing all mods");
+            list_mods(&pool).await?;
+        }
+    }
+
+    Ok(())
+}
+
+async fn list_mods(pool: &PgPool) -> anyhow::Result<()> {
+    let mods = sqlx::query!("SELECT * FROM mods ORDER BY id")
+        .fetch_all(pool)
+        .await?;
+
+    for m in mods {
+        println!(
+            "({}) {}: [{}] - [{} | {}] ({})",
+            m.id, m.name, m.metadata, m.status, m.installed_on, m.updated_on, m.creator_id,
+        );
+    }
+}
