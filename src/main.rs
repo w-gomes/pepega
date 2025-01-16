@@ -1,7 +1,10 @@
 #![feature(iter_intersperse)]
-use clap::{Parser, Subcommand};
+use std::{
+    path::Path,
+    process::{Command, Stdio},
+};
 
-use std::process::Command;
+use clap::{Parser, Subcommand};
 
 #[derive(Parser, Debug)]
 #[command(about = "Smol video tool that uses ffmpeg under the hood.")]
@@ -22,6 +25,7 @@ struct Yuh {
 
 #[derive(Subcommand, Debug)]
 enum Commands {
+    // TODO: add and option to encode when it clips instead of copying.
     /// Creates a clip of video with given START and END
     Clip { start: String, end: String },
 
@@ -50,27 +54,27 @@ enum Commands {
 }
 
 fn run_ffmpeg(args: &[String]) {
-    dbg!(&args);
-    let output = Command::new("ffmpeg")
+    let msg = args;
+    let msg = msg.join(" ");
+    print!("calling ffmpeg with args:\n\t( {msg} )\n\n");
+
+    let ffmpeg = Command::new("ffmpeg")
         .args(args)
-        .output()
-        .expect("Error executing ffmpeg");
+        .stdout(Stdio::piped())
+        .spawn()
+        .expect("Failed to execute ffmpeg.");
 
-    let status = &output.status;
-
-    if status.success() {
-        println!("{}", "Success calling ffmpeg");
-    } else {
+    let output = ffmpeg
+        .wait_with_output()
+        .expect("Failed to get the output.");
+    if !output.status.success() {
         eprint!(
             "-- Failed to execute ffmpeg. Error code: {} -- ",
-            status.code().unwrap()
+            output.status.code().unwrap()
         );
-        eprintln!("[\n\n{}\n] --", String::from_utf8_lossy(&output.stderr));
-        return;
+    } else {
+        println!("\nDone!");
     }
-
-    // Will this handle all the stdout from ffmpeg?
-    println!("{}", String::from_utf8_lossy(&output.stdout));
 }
 
 fn main() {
@@ -100,6 +104,7 @@ fn main() {
                 clip_args.push(String::from("-copyts"));
                 clip_args.push(format!("{output}"));
 
+                println!("creating a clip of {input} [{start}...{end}] -> {output}");
                 run_ffmpeg(&clip_args);
             }
         }
@@ -131,6 +136,7 @@ fn main() {
 
                 let output = args.output.clone();
                 merge_args.push(format!("{output}"));
+
                 run_ffmpeg(&merge_args);
             }
             */
@@ -159,23 +165,50 @@ fn main() {
 
                 let mut video_args = Vec::new();
                 let input = args.inputs[0].clone();
+
+                let path = Path::new(&input);
+                let absolute_path = path.canonicalize().unwrap();
+
+                if !path.is_dir() {
+                    eprintln!("{input} is not a directory.");
+                    // do we return here?
+                    return;
+                }
+
+                // this should never failed?
+                let total_images = path
+                    .read_dir()
+                    .expect("Failed to read directory")
+                    .filter(|entry| {
+                        entry
+                            .as_ref()
+                            .unwrap()
+                            .file_name()
+                            .into_string()
+                            .unwrap()
+                            .ends_with("png")
+                    })
+                    .count();
+
                 let output = args.output.clone();
 
                 video_args.push(String::from("-y"));
                 video_args.push(String::from("-framerate"));
-                video_args.push(format!("-1/{framerate}"));
+                video_args.push(format!("1/{framerate}"));
                 video_args.push(String::from("-pattern_type"));
                 video_args.push(String::from("glob"));
                 video_args.push(String::from("-i"));
-                video_args.push(format!("'{input}'"));
+                video_args.push(format!("{}/*.png", absolute_path.display()));
                 video_args.push(String::from("-c:v"));
                 video_args.push(String::from("libx264"));
                 video_args.push(String::from("-r"));
                 video_args.push(String::from("30"));
                 video_args.push(String::from("-pix_fmt"));
-                video_args.push(String::from("-yuv420p"));
+                video_args.push(String::from("yuv420p"));
                 video_args.push(format!("{output}"));
 
+                let input = path.to_str().unwrap();
+                println!("creating a video from {total_images} images in {input} with framerate 1/{framerate}");
                 run_ffmpeg(&video_args);
             }
         }
@@ -198,6 +231,7 @@ fn main() {
                 audio_args.push(String::from("mp3"));
                 audio_args.push(format!("{output}"));
 
+                println!("extracting audio of {input} -> {output}");
                 run_ffmpeg(&audio_args);
             }
         }
@@ -238,6 +272,9 @@ fn main() {
                 encode_args.push(String::from("copy"));
                 encode_args.push(format!("{output}"));
 
+                println!(
+                    "encoding {input} with libx264 crf={crf} audio stream is copied -> {output}"
+                );
                 run_ffmpeg(&encode_args);
             }
         }
@@ -268,6 +305,7 @@ fn main() {
                 youtube_args.push(String::from("yuv420p"));
                 youtube_args.push(format!("{output}"));
 
+                println!("encoding video for youtube {input} -> {output}");
                 run_ffmpeg(&youtube_args);
             }
         }
