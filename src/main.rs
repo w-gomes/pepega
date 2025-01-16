@@ -1,6 +1,6 @@
 #![feature(iter_intersperse)]
 use std::{
-    path::Path,
+    path::PathBuf,
     process::{Command, Stdio},
 };
 
@@ -12,11 +12,11 @@ use clap::{Parser, Subcommand};
 struct Yuh {
     /// Inputs files.
     #[arg(short, required = true)]
-    inputs: Vec<String>,
+    inputs: Vec<PathBuf>,
 
     /// Output file.
     #[arg(short, required = true)]
-    output: String,
+    output: PathBuf,
 
     /// Options for the program.
     #[command(subcommand)]
@@ -77,6 +77,11 @@ fn run_ffmpeg(args: &[String]) {
     }
 }
 
+fn abs_to_string(path: &PathBuf) -> String {
+    dbg!(path);
+    path.canonicalize().unwrap().to_str().unwrap().to_string()
+}
+
 fn main() {
     let args = Yuh::parse();
 
@@ -86,8 +91,8 @@ fn main() {
             if args.inputs.len() > 1 {
                 eprintln!("Too many inputs for this command!");
             } else {
-                let input = args.inputs[0].clone();
-                let output = args.output.clone();
+                let input = abs_to_string(&args.inputs[0]);
+                let output = abs_to_string(&args.output);
 
                 let mut clip_args = Vec::new();
 
@@ -164,19 +169,18 @@ fn main() {
                 };
 
                 let mut video_args = Vec::new();
-                let input = args.inputs[0].clone();
+                let input = &args.inputs[0];
 
-                let path = Path::new(&input);
-                let absolute_path = path.canonicalize().unwrap();
+                let absolute_path = abs_to_string(input);
 
-                if !path.is_dir() {
-                    eprintln!("{input} is not a directory.");
+                if !input.is_dir() {
+                    eprintln!("{} is not a directory.", input.display());
                     // do we return here?
                     return;
                 }
 
                 // this should never failed?
-                let total_images = path
+                let total_images = input
                     .read_dir()
                     .expect("Failed to read directory")
                     .filter(|entry| {
@@ -190,7 +194,7 @@ fn main() {
                     })
                     .count();
 
-                let output = args.output.clone();
+                let output = abs_to_string(&args.output);
 
                 video_args.push(String::from("-y"));
                 video_args.push(String::from("-framerate"));
@@ -198,7 +202,7 @@ fn main() {
                 video_args.push(String::from("-pattern_type"));
                 video_args.push(String::from("glob"));
                 video_args.push(String::from("-i"));
-                video_args.push(format!("{}/*.png", absolute_path.display()));
+                video_args.push(format!("{}/*.png", absolute_path));
                 video_args.push(String::from("-c:v"));
                 video_args.push(String::from("libx264"));
                 video_args.push(String::from("-r"));
@@ -207,7 +211,7 @@ fn main() {
                 video_args.push(String::from("yuv420p"));
                 video_args.push(format!("{output}"));
 
-                let input = path.to_str().unwrap();
+                let input = input.to_str().unwrap();
                 println!("creating a video from {total_images} images in {input} with framerate 1/{framerate}");
                 run_ffmpeg(&video_args);
             }
@@ -217,8 +221,8 @@ fn main() {
             if args.inputs.len() > 1 {
                 eprintln!("Too many inputs for this command!");
             } else {
-                let input = args.inputs[0].clone();
-                let output = args.output.clone();
+                let input = abs_to_string(&args.inputs[0]);
+                let output = abs_to_string(&args.output);
 
                 let mut audio_args = Vec::new();
 
@@ -255,8 +259,8 @@ fn main() {
                     None => 23,
                 };
 
-                let input = args.inputs[0].clone();
-                let output = args.output.clone();
+                let input = abs_to_string(&args.inputs[0]);
+                let output = abs_to_string(&args.output);
 
                 let mut encode_args = Vec::new();
 
@@ -283,8 +287,8 @@ fn main() {
             if args.inputs.len() > 1 {
                 eprintln!("Too many inputs for this command!");
             } else {
-                let input = args.inputs[0].clone();
-                let output = args.output.clone();
+                let input = abs_to_string(&args.inputs[0]);
+                let output = abs_to_string(&args.output);
 
                 let mut youtube_args = Vec::new();
 
