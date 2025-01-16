@@ -82,8 +82,28 @@ fn abs_to_string(path: &PathBuf) -> String {
     path.canonicalize().unwrap().to_str().unwrap().to_string()
 }
 
+enum Inputs {
+    Single(String),
+    Multiple(Vec<String>),
+}
+
 fn main() {
     let args = Yuh::parse();
+
+    // check inputs files
+    let inputs_size = args.inputs.len();
+
+    // check if input goodge
+    let good_input = args.inputs[0].is_file() || args.inputs[0].is_dir();
+
+    // check if input is a '.'
+    if !good_input {
+        if inputs_size == 1 {
+        } else {
+            eprintln!("Failed trying to understand the inputs: {:?}", args.inputs);
+            return;
+        }
+    }
 
     match args.command {
         Commands::Clip { start, end } => {
