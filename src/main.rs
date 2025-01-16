@@ -6,6 +6,43 @@ use std::{
 
 use clap::{Parser, Subcommand};
 
+// - Future ideas
+// Options:
+//  -i <INPUTS>, -o <OUTPUT>
+//  At the moment we are reading the inputs and output as Vec<String> and String
+//  respectively.
+//  We want to start to use PathBuf that way we can check if the arguments
+//  entered are actually files or a directory.
+//  The idea is to use PathBuf. So that we can check if the inputs are actually
+//  files or a directory. And the output we can check if the directory is also
+//  valid.
+//  We can also check, for example, for the video command we can enter `.`,
+//  which means run the command on the current directory. So we can check for
+//  this input and run std::fs::current_dir and pass that to PathBuf and get
+//  the absolute path.
+//  We can use an Enum and match those inputs and pass that to the Commands.
+//  A bit of engineering will be required.
+//
+// Commands:
+// * Clip
+//   At the moment we are copying video and audio streams as well as timestamp.
+//   Add an option to each stream or both. E.g. --reencode
+//
+// * Merge
+//   At the moment, merge is incomplete, but after implementing video command.
+//   We could implement this in the same way. Just take the the path to
+//   a directory containing all the video that we want to merge.
+//   Moreover, we can also check if all the files ends with .mp4 or .mkv and
+//   filter out all different files without those extensions.
+//
+// * Video
+//   Mostly complete. We should also check for images with different extensions.
+//
+// * Audio
+//   At the moment we are extracting audio from the entire video file.
+//   We could add the clip functionality and just extract a portion of the video,
+//   with a given START and END.
+//
 #[derive(Parser, Debug)]
 #[command(about = "Smol video tool that uses ffmpeg under the hood.")]
 #[command(version, long_about = None)]
