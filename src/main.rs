@@ -80,7 +80,7 @@ struct Yuh {
 
 #[derive(Subcommand, Debug)]
 enum Commands {
-    /// Creates a clip of video with given START and END
+    /// Creates a clip of a video with START and END positions. Use the encode flag to reencode.
     Clip {
         start: String,
         end: String,
@@ -88,30 +88,31 @@ enum Commands {
         encode: bool,
     },
 
-    /// Merges two or more videos
+    /// Merges two or more videos.
     Merge,
 
-    /// Creates a video from images with default framaterate of 1/5.
-    /// If desired, user can pass a new value for the framerate BETWEEN 0 and 5
+    /// Creates a video from images with default of 5 seconds.
+    /// The time can be changed with FRAMERATE option, BETWEEN 1 and 10.
     Video {
         #[arg(short, long, value_name = "FRAMERATE")]
         framerate: Option<i16>,
     },
 
-    /// Extracts the audio stream from a video
+    /// Extracts the audio stream from a video.
+    /// Optionally, can set START and END.
     Audio {
         start: Option<String>,
         end: Option<String>,
     },
 
     /// Encodes a video with default value of 23 for crf.
-    /// If desired, user can pass a new value for crf between 0 and 51
+    /// Optionally, can set a new value for CRF BETWEEN 0 and 51.
     Encode {
         #[arg(short, long, value_name = "CRF")]
         crf: Option<i16>,
     },
 
-    /// Encodes a video for youtube
+    /// Encodes a video for youtube.
     Youtube,
 }
 
