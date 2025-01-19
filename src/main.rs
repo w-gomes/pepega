@@ -54,6 +54,12 @@ use tempfile::tempdir_in;
 //
 // * Filters
 //   What kinda of filters do we want though?
+//   - Options
+//     Scaling e.g. 1280x720 to 320x240
+//     Padding
+//     Fading (maybe good for Merge command)
+//     Drawing Text
+//     Timeline Editing, enable filters with specific START and END
 //
 #[derive(Parser, Debug)]
 #[command(about = "Smol video tool that uses ffmpeg under the hood.")]
@@ -217,7 +223,7 @@ fn main() {
         Commands::Clip { start, end, encode } => {
             // we only expect ONE input.
             if inputs_size > 1 {
-                eprintln!("Too many inputs for this command!");
+                eprintln!("Too many inputs");
             } else {
                 let actual_inputs = actual_inputs.single();
                 let mut clip_args = Vec::with_capacity(50);
@@ -249,9 +255,10 @@ fn main() {
             }
         }
         Commands::Merge => {
+            // TODO: Research concatenating streams with filters.
             // we expect more TWO or MORE inputs.
             if inputs_size < 2 {
-                eprintln!("Not enough inputs for this command!");
+                eprintln!("Not enough inputs");
             } else {
                 // we first append -i to every input
                 let actual_inputs = actual_inputs
@@ -296,7 +303,7 @@ fn main() {
 
         Commands::Video { framerate } => {
             if inputs_size > 1 {
-                eprintln!("We only need the pattern.");
+                eprintln!("Too many inputs");
             } else {
                 let actual_inputs = actual_inputs.single();
                 let input_path = PathBuf::from(actual_inputs.clone());
@@ -375,9 +382,13 @@ fn main() {
         Commands::Audio { start, end } => {
             // we only expect ONE input.
             if inputs_size > 1 {
-                eprintln!("Too many inputs for this command!");
+                eprintln!("Too many inputs");
             } else {
-                if start.is_none() || end.is_none() {
+                if start.is_some() && end.is_none() {
+                    eprintln!("Need both start and end to clip audio");
+                    return;
+                }
+                if start.is_none() && end.is_some() {
                     eprintln!("Need both start and end to clip audio");
                     return;
                 }
@@ -411,7 +422,7 @@ fn main() {
         Commands::Encode { crf } => {
             // we only expect ONE input.
             if inputs_size > 1 {
-                eprintln!("Too many inputs for this command!");
+                eprintln!("Too many inputs");
             } else {
                 let crf = match crf {
                     Some(crf) => {
@@ -434,7 +445,7 @@ fn main() {
                 encode_args.push(String::from("-i"));
                 encode_args.push(format!("{actual_inputs}"));
                 encode_args.push(String::from("-c:v"));
-                encode_args.push(String::from("-libx264"));
+                encode_args.push(String::from("libx264"));
                 encode_args.push(String::from("-crf"));
                 encode_args.push(format!("{crf}"));
                 encode_args.push(String::from("-c:a"));
@@ -450,7 +461,7 @@ fn main() {
         Commands::Youtube => {
             // we only expect ONE input.
             if inputs_size > 1 {
-                eprintln!("Too many inputs for this command!");
+                eprintln!("Too many inputs");
             } else {
                 let actual_inputs = actual_inputs.single();
                 let mut youtube_args = Vec::with_capacity(50);
