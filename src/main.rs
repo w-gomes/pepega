@@ -66,7 +66,6 @@ struct Yuh {
 
 #[derive(Subcommand, Debug)]
 enum Commands {
-    // TODO: add and option to encode when it clips instead of copying.
     /// Creates a clip of video with given START and END
     Clip {
         start: String,
