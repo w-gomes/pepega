@@ -81,13 +81,8 @@ struct Yuh {
 
 #[derive(Subcommand, Debug)]
 enum Commands {
-    /// Creates a clip of a video with START and END positions. Use the encode flag to reencode.
-    Clip {
-        start: String,
-        end: String,
-        #[arg(short, long)]
-        encode: bool,
-    },
+    /// Creates a clip of a video with START and END positions.
+    Clip { start: String, end: String },
 
     /// Merges two or more videos.
     Merge,
@@ -222,7 +217,7 @@ fn main() {
     let actual_output = full_path(args.output);
 
     match args.command {
-        Commands::Clip { start, end, encode } => {
+        Commands::Clip { start, end } => {
             // we only expect ONE input.
             if inputs_size > 1 {
                 eprintln!("Too many inputs");
@@ -236,20 +231,9 @@ fn main() {
                 clip_args.push(format!("{actual_inputs}"));
                 clip_args.push(String::from("-to"));
                 clip_args.push(format!("{end}"));
-                if encode {
-                    clip_args.push(String::from("-c:v"));
-                    clip_args.push(String::from("libx264"));
-                    clip_args.push(String::from("-c:a"));
-                    clip_args.push(String::from("aac"));
-                    clip_args.push(String::from("-b:a"));
-                    clip_args.push(String::from("384k"));
-                    clip_args.push(String::from("-pix_fmt"));
-                    clip_args.push(String::from("yuv420p"));
-                } else {
-                    clip_args.push(String::from("-c"));
-                    clip_args.push(String::from("copy"));
-                    clip_args.push(String::from("-copyts"));
-                }
+                clip_args.push(String::from("-c"));
+                clip_args.push(String::from("copy"));
+                clip_args.push(String::from("-copyts"));
                 clip_args.push(format!("{actual_output}"));
 
                 println!("creating a clip of {actual_inputs} [{start}...{end}] -> {actual_output}");
