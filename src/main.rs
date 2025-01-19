@@ -60,6 +60,7 @@ use tempfile::tempdir_in;
 //     Fading (maybe good for Merge command)
 //     Drawing Text
 //     Timeline Editing, enable filters with specific START and END
+//     Speed up at specific sections in the video, slow and fast motions.
 //
 #[derive(Parser, Debug)]
 #[command(about = "Smol video tool that uses ffmpeg under the hood.")]
