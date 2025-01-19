@@ -11,6 +11,11 @@ use clap::{Parser, Subcommand};
 use tempfile::tempdir_in;
 
 // - Future ideas
+// General Design:
+//  Currently we are doing a bunch of push calls to vec.
+//  Research a way to avoid that. Maybe Vec::with_capacity
+//  or vec![...] and replace the fields with parameters...
+//
 // Options:
 //  -i <INPUTS>, -o <OUTPUT>
 //  At the moment we are reading the inputs and output as Vec<String> and String
@@ -314,10 +319,7 @@ fn main() {
                 };
 
                 // FUCK, WINDOWS DOESN'T SUPPORT GLOB, OMEGALUL
-                // so we have to create a temporary txt files with all images in it
-                //
-                // Windows doesn't support glob functionality, so we have
-                // to create a temporary file to hold the names of every
+                // gotta to create a temporary file with the names of every
                 // images and use ffmpeg -concat
 
                 // Create temporary dir and file
