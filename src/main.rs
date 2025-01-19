@@ -1,10 +1,14 @@
 #![feature(iter_intersperse)]
 use std::{
+    env::current_dir,
+    fs::File,
+    io::Write,
     path::PathBuf,
     process::{Command, Stdio},
 };
 
 use clap::{Parser, Subcommand};
+use tempfile::tempdir_in;
 
 // - Future ideas
 // Options:
@@ -49,11 +53,11 @@ use clap::{Parser, Subcommand};
 struct Yuh {
     /// Inputs files.
     #[arg(short, required = true)]
-    inputs: Vec<PathBuf>,
+    inputs: Vec<String>,
 
     /// Output file.
     #[arg(short, required = true)]
-    output: PathBuf,
+    output: String,
 
     /// Options for the program.
     #[command(subcommand)]
@@ -64,7 +68,12 @@ struct Yuh {
 enum Commands {
     // TODO: add and option to encode when it clips instead of copying.
     /// Creates a clip of video with given START and END
-    Clip { start: String, end: String },
+    Clip {
+        start: String,
+        end: String,
+        #[arg(short, long)]
+        encode: bool,
+    },
 
     /// Merges two or more videos
     Merge,
@@ -72,7 +81,7 @@ enum Commands {
     /// Creates a video from images with default framaterate of 1/5.
     /// If desired, user can pass a new value for the framerate BETWEEN 0 and 5
     Video {
-        #[arg(short, value_name = "FRAMERATE")]
+        #[arg(short, long, value_name = "FRAMERATE")]
         framerate: Option<i16>,
     },
 
@@ -82,7 +91,7 @@ enum Commands {
     /// Encodes a video with default value of 23 for crf.
     /// If desired, user can pass a new value for crf between 0 and 51
     Encode {
-        #[arg(short, value_name = "CRF")]
+        #[arg(short, long, value_name = "CRF")]
         crf: Option<i16>,
     },
 
@@ -95,33 +104,74 @@ fn run_ffmpeg(args: &[String]) {
     let msg = msg.join(" ");
     print!("calling ffmpeg with args:\n\t( {msg} )\n\n");
 
-    let ffmpeg = Command::new("ffmpeg")
-        .args(args)
-        .stdout(Stdio::piped())
-        .spawn()
-        .expect("Failed to execute ffmpeg.");
-
-    let output = ffmpeg
-        .wait_with_output()
-        .expect("Failed to get the output.");
-    if !output.status.success() {
-        eprint!(
-            "-- Failed to execute ffmpeg. Error code: {} -- ",
-            output.status.code().unwrap()
-        );
+    let run_dummy = false;
+    if run_dummy {
+        println!("calling ffmpeg with no args!");
+        let ffmpeg = Command::new("ffmpeg")
+            .arg("-version")
+            .stdout(Stdio::piped())
+            .spawn()
+            .expect("Failed to execute ffmpeg.");
+        let output = ffmpeg
+            .wait_with_output()
+            .expect("Failed to get the output.");
+        if !output.status.success() {
+            eprint!(
+                "-- Failed to execute ffmpeg. Error code: {} -- ",
+                output.status.code().unwrap()
+            );
+        } else {
+            println!("\nDone!");
+        }
     } else {
-        println!("\nDone!");
+        let ffmpeg = Command::new("ffmpeg")
+            .args(args)
+            .stdout(Stdio::piped())
+            .spawn()
+            .expect("Failed to execute ffmpeg.");
+
+        let output = ffmpeg
+            .wait_with_output()
+            .expect("Failed to get the output.");
+        if !output.status.success() {
+            eprint!(
+                "-- Failed to execute ffmpeg. Error code: {} -- ",
+                output.status.code().unwrap()
+            );
+        } else {
+            println!("\nDone!");
+        }
     }
 }
 
-fn abs_to_string(path: &PathBuf) -> String {
-    dbg!(path);
-    path.canonicalize().unwrap().to_str().unwrap().to_string()
+fn full_path(file: String) -> String {
+    current_dir()
+        .unwrap()
+        .join(file)
+        .to_str()
+        .unwrap()
+        .to_string()
 }
 
-enum Inputs {
+enum Input {
     Single(String),
     Multiple(Vec<String>),
+}
+
+impl Input {
+    fn single(self) -> String {
+        match self {
+            Input::Single(value) => value,
+            _ => panic!("Tried to take Multiple from Single."),
+        }
+    }
+
+    fn multiple(self) -> Vec<String> {
+        match self {
+            Input::Multiple(values) => values,
+            _ => panic!("Tried to take Single from Multiple."),
+        }
+    }
 }
 
 fn main() {
@@ -130,86 +180,125 @@ fn main() {
     // check inputs files
     let inputs_size = args.inputs.len();
 
-    // check if input goodge
-    let good_input = args.inputs[0].is_file() || args.inputs[0].is_dir();
-
-    // check if input is a '.'
-    if !good_input {
-        if inputs_size == 1 {
+    // handle the inputs
+    let actual_inputs = if inputs_size == 1 {
+        // single input
+        let single_input = args.inputs[0].clone();
+        // if input is a '.', then we call env::current_dir()
+        if single_input == "." {
+            Input::Single(current_dir().unwrap().to_str().unwrap().to_string())
         } else {
-            eprintln!("Failed trying to understand the inputs: {:?}", args.inputs);
-            return;
+            Input::Single(full_path(single_input))
         }
-    }
+    } else {
+        // multiple inputs
+        Input::Multiple(
+            args.inputs
+                .iter()
+                .map(|input| full_path(input.to_string()))
+                .collect(),
+        )
+    };
+
+    // currently we only suport single output.
+    let actual_output = full_path(args.output);
 
     match args.command {
-        Commands::Clip { start, end } => {
+        Commands::Clip { start, end, encode } => {
             // we only expect ONE input.
-            if args.inputs.len() > 1 {
+            if inputs_size > 1 {
                 eprintln!("Too many inputs for this command!");
             } else {
-                let input = abs_to_string(&args.inputs[0]);
-                let output = abs_to_string(&args.output);
-
+                let actual_inputs = actual_inputs.single();
                 let mut clip_args = Vec::new();
-
                 // overwrites file if it already exists.
                 clip_args.push(String::from("-y"));
                 clip_args.push(String::from("-ss"));
                 clip_args.push(format!("{start}"));
                 clip_args.push(String::from("-i"));
-                clip_args.push(format!("{input}"));
+                clip_args.push(format!("{actual_inputs}"));
                 clip_args.push(String::from("-to"));
                 clip_args.push(format!("{end}"));
-                clip_args.push(String::from("-c"));
-                clip_args.push(String::from("copy"));
-                clip_args.push(String::from("-copyts"));
-                clip_args.push(format!("{output}"));
+                if encode {
+                    clip_args.push(String::from("-c:v"));
+                    clip_args.push(String::from("libx264"));
+                    clip_args.push(String::from("-c:a"));
+                    clip_args.push(String::from("aac"));
+                    clip_args.push(String::from("-b:a"));
+                    clip_args.push(String::from("384k"));
+                    clip_args.push(String::from("-pix_fmt"));
+                    clip_args.push(String::from("yuv420p"));
+                } else {
+                    clip_args.push(String::from("-c"));
+                    clip_args.push(String::from("copy"));
+                    clip_args.push(String::from("-copyts"));
+                }
+                clip_args.push(format!("{actual_output}"));
 
-                println!("creating a clip of {input} [{start}...{end}] -> {output}");
+                println!("creating a clip of {actual_inputs} [{start}...{end}] -> {actual_output}");
                 run_ffmpeg(&clip_args);
             }
         }
         Commands::Merge => {
-            //TODO: Fix this
-            println!("Not implemented!");
-            /*
             // we expect more TWO or MORE inputs.
-            if args.inputs.len() < 2 {
+            if inputs_size < 2 {
                 eprintln!("Not enough inputs for this command!");
             } else {
                 // we first append -i to every input
-                let mut merge_args: Vec<_> = args
-                    .inputs
-                    .into_iter()
-                    .intersperse(String::from("-i"))
-                    .collect();
+                let actual_inputs = actual_inputs
+                    .multiple()
+                    .iter()
+                    .map(|video| PathBuf::from(video.clone()).to_str().unwrap().to_string())
+                    .collect::<Vec<String>>();
 
-                // TODO: HACK.
-                // using insert here for the first argument.
-                // maybe figure something out better than intersperse.
-                merge_args.insert(0, String::from("-i"));
+                // Create temporary dir and file
+                let tmp_dir = tempdir_in(".").expect("Failed to create a folder");
+                let tmp_list = tmp_dir.path().join("tmp_list.txt");
+                let mut tmp_list_file =
+                    File::create(&tmp_list).expect("Failed to create an tmp list file");
 
+                let mut total_videos = 0;
+
+                for entry in actual_inputs {
+                    writeln!(tmp_list_file, "file '{}'", entry)
+                        .expect("Failed to write to tmp_img_list_file");
+                    total_videos += 1;
+                }
+
+                let inputs = tmp_list.to_str().unwrap().to_string();
+                let mut merge_args = Vec::new();
                 merge_args.push(String::from("-y"));
-                merge_args.push(String::from("-vcodec"));
-                merge_args.push(String::from("copy"));
-                merge_args.push(String::from("-acodec"));
-                merge_args.push(String::from("copy"));
+                merge_args.push(String::from("-f"));
+                merge_args.push(String::from("concat"));
+                merge_args.push(String::from("-safe"));
+                merge_args.push(String::from("0"));
+                merge_args.push(String::from("-i"));
+                merge_args.push(format!("{inputs}"));
+                merge_args.push(String::from("-c:v"));
+                merge_args.push(String::from("libx264"));
+                merge_args.push(String::from("-pix_fmt"));
+                merge_args.push(String::from("yuv420p"));
+                merge_args.push(format!("{actual_output}"));
 
-                let output = args.output.clone();
-                merge_args.push(format!("{output}"));
-
+                println!("merging {total_videos} videos in {inputs}");
                 run_ffmpeg(&merge_args);
             }
-            */
         }
 
         Commands::Video { framerate } => {
-            if args.inputs.len() > 1 {
+            if inputs_size > 1 {
                 // TODO: check this.
-                // Actually we only need a path to the folder containing the images.
+                // Actually, we only need a path to the folder containing the images.
                 eprintln!("We only need the pattern.");
             } else {
+                let actual_inputs = actual_inputs.single();
+                let input_path = PathBuf::from(actual_inputs.clone());
+                if !input_path.is_dir() {
+                    eprintln!("{} is not a directory.", actual_inputs);
+                    // do we return here?
+                    return;
+                }
+
                 let framerate = match framerate {
                     Some(framerate) => {
                         if framerate < 1 && framerate > 10 {
@@ -225,80 +314,83 @@ fn main() {
                     None => 5,
                 };
 
-                let mut video_args = Vec::new();
-                let input = &args.inputs[0];
+                // FUCK, WINDOWS DOESN'T SUPPORT GLOB, OMEGALUL
+                // so we have to create a temporary txt files with all images in it
+                //
+                // Windows doesn't support glob functionality, so we have
+                // to create a temporary file to hold the names of every
+                // images and use ffmpeg -concat
 
-                let absolute_path = abs_to_string(input);
+                // Create temporary dir and file
+                let tmp_dir = tempdir_in(".").expect("Failed to create a folder");
+                let tmp_img_list = tmp_dir.path().join("tmp_img_list.txt");
+                let mut tmp_img_list_file =
+                    File::create(&tmp_img_list).expect("Failed to create an tmp image list file");
 
-                if !input.is_dir() {
-                    eprintln!("{} is not a directory.", input.display());
-                    // do we return here?
-                    return;
+                let mut total_images = 0;
+
+                for entry in input_path
+                    .read_dir()
+                    .expect("Failed to read entries in directory")
+                {
+                    if let Ok(entry) = entry {
+                        let entry_path = entry.path();
+                        let entry_path_str = entry_path.to_str().unwrap();
+                        if entry_path_str.ends_with("png") {
+                            writeln!(tmp_img_list_file, "file '{}'", entry_path_str)
+                                .expect("Failed to write to tmp_img_list_file");
+                            writeln!(tmp_img_list_file, "duration {}", framerate)
+                                .expect("Failed to write to tmp_img_list_file");
+                            total_images += 1;
+                        }
+                    }
                 }
 
-                // this should never failed?
-                let total_images = input
-                    .read_dir()
-                    .expect("Failed to read directory")
-                    .filter(|entry| {
-                        entry
-                            .as_ref()
-                            .unwrap()
-                            .file_name()
-                            .into_string()
-                            .unwrap()
-                            .ends_with("png")
-                    })
-                    .count();
+                let inputs = tmp_img_list.to_str().unwrap().to_string();
 
-                let output = abs_to_string(&args.output);
-
+                let mut video_args = Vec::new();
                 video_args.push(String::from("-y"));
-                video_args.push(String::from("-framerate"));
-                video_args.push(format!("1/{framerate}"));
-                video_args.push(String::from("-pattern_type"));
-                video_args.push(String::from("glob"));
+                video_args.push(String::from("-f"));
+                video_args.push(String::from("concat"));
+                video_args.push(String::from("-safe"));
+                video_args.push(String::from("0"));
                 video_args.push(String::from("-i"));
-                video_args.push(format!("{}/*.png", absolute_path));
+                video_args.push(format!("{inputs}"));
                 video_args.push(String::from("-c:v"));
                 video_args.push(String::from("libx264"));
                 video_args.push(String::from("-r"));
                 video_args.push(String::from("30"));
                 video_args.push(String::from("-pix_fmt"));
                 video_args.push(String::from("yuv420p"));
-                video_args.push(format!("{output}"));
+                video_args.push(format!("{actual_output}"));
 
-                let input = input.to_str().unwrap();
-                println!("creating a video from {total_images} images in {input} with framerate 1/{framerate}");
+                println!("creating a video from {total_images} images in {inputs} with framerate 1/{framerate}");
                 run_ffmpeg(&video_args);
             }
         }
         Commands::Audio => {
             // we only expect ONE input.
-            if args.inputs.len() > 1 {
+            if inputs_size > 1 {
                 eprintln!("Too many inputs for this command!");
             } else {
-                let input = abs_to_string(&args.inputs[0]);
-                let output = abs_to_string(&args.output);
-
+                let actual_inputs = actual_inputs.single();
                 let mut audio_args = Vec::new();
-
                 // overwrites file if it already exists.
                 audio_args.push(String::from("-y"));
                 audio_args.push(String::from("-i"));
-                audio_args.push(format!("{input}"));
+                audio_args.push(format!("{actual_inputs}"));
                 audio_args.push(String::from("-vn"));
                 audio_args.push(String::from("-c:a"));
                 audio_args.push(String::from("mp3"));
-                audio_args.push(format!("{output}"));
+                audio_args.push(format!("{actual_output}"));
 
-                println!("extracting audio of {input} -> {output}");
+                println!("extracting audio of {actual_inputs} -> {actual_output}");
                 run_ffmpeg(&audio_args);
             }
         }
         Commands::Encode { crf } => {
             // we only expect ONE input.
-            if args.inputs.len() > 1 {
+            if inputs_size > 1 {
                 eprintln!("Too many inputs for this command!");
             } else {
                 let crf = match crf {
@@ -316,57 +408,52 @@ fn main() {
                     None => 23,
                 };
 
-                let input = abs_to_string(&args.inputs[0]);
-                let output = abs_to_string(&args.output);
-
+                let actual_inputs = actual_inputs.single();
                 let mut encode_args = Vec::new();
-
                 // overwrites file if it already exists.
                 encode_args.push(String::from("-y"));
                 encode_args.push(String::from("-i"));
-                encode_args.push(format!("{input}"));
+                encode_args.push(format!("{actual_inputs}"));
                 encode_args.push(String::from("-c:v"));
                 encode_args.push(String::from("-libx264"));
                 encode_args.push(String::from("-crf"));
                 encode_args.push(format!("{crf}"));
                 encode_args.push(String::from("-c:a"));
                 encode_args.push(String::from("copy"));
-                encode_args.push(format!("{output}"));
+                encode_args.push(format!("{actual_output}"));
 
                 println!(
-                    "encoding {input} with libx264 crf={crf} audio stream is copied -> {output}"
+                    "encoding {actual_inputs} with libx264 crf={crf} audio stream is copied -> {actual_output}"
                 );
                 run_ffmpeg(&encode_args);
             }
         }
         Commands::Youtube => {
             // we only expect ONE input.
-            if args.inputs.len() > 1 {
+            if inputs_size > 1 {
                 eprintln!("Too many inputs for this command!");
             } else {
-                let input = abs_to_string(&args.inputs[0]);
-                let output = abs_to_string(&args.output);
-
+                let actual_inputs = actual_inputs.single();
                 let mut youtube_args = Vec::new();
-
                 // overwrites file if it already exists.
                 youtube_args.push(String::from("-y"));
                 youtube_args.push(String::from("-i"));
-                youtube_args.push(format!("{input}"));
+                youtube_args.push(format!("{actual_inputs}"));
                 youtube_args.push(String::from("-c:v"));
                 youtube_args.push(String::from("libx264"));
                 youtube_args.push(String::from("-crf"));
                 youtube_args.push(String::from("18"));
                 youtube_args.push(String::from("-preset"));
+                youtube_args.push(String::from("ultrafast"));
                 youtube_args.push(String::from("-c:a"));
                 youtube_args.push(String::from("aac"));
                 youtube_args.push(String::from("-b:a"));
                 youtube_args.push(String::from("384k"));
                 youtube_args.push(String::from("-pix_fmt"));
                 youtube_args.push(String::from("yuv420p"));
-                youtube_args.push(format!("{output}"));
+                youtube_args.push(format!("{actual_output}"));
 
-                println!("encoding video for youtube {input} -> {output}");
+                println!("encoding video for youtube {actual_inputs} -> {actual_output}");
                 run_ffmpeg(&youtube_args);
             }
         }
