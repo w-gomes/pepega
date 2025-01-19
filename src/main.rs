@@ -52,6 +52,9 @@ use tempfile::tempdir_in;
 //   We could add the clip functionality and just extract a portion of the video,
 //   with a given START and END.
 //
+// * Filters
+//   What kinda of filters do we want though?
+//
 #[derive(Parser, Debug)]
 #[command(about = "Smol video tool that uses ffmpeg under the hood.")]
 #[command(version, long_about = None)]
@@ -90,7 +93,10 @@ enum Commands {
     },
 
     /// Extracts the audio stream from a video
-    Audio,
+    Audio {
+        start: Option<String>,
+        end: Option<String>,
+    },
 
     /// Encodes a video with default value of 23 for crf.
     /// If desired, user can pass a new value for crf between 0 and 51
@@ -214,8 +220,7 @@ fn main() {
                 eprintln!("Too many inputs for this command!");
             } else {
                 let actual_inputs = actual_inputs.single();
-                let mut clip_args = Vec::new();
-                // overwrites file if it already exists.
+                let mut clip_args = Vec::with_capacity(50);
                 clip_args.push(String::from("-y"));
                 clip_args.push(String::from("-ss"));
                 clip_args.push(format!("{start}"));
@@ -270,7 +275,7 @@ fn main() {
                 }
 
                 let inputs = tmp_list.to_str().unwrap().to_string();
-                let mut merge_args = Vec::new();
+                let mut merge_args = Vec::with_capacity(50);
                 merge_args.push(String::from("-y"));
                 merge_args.push(String::from("-f"));
                 merge_args.push(String::from("concat"));
@@ -291,8 +296,6 @@ fn main() {
 
         Commands::Video { framerate } => {
             if inputs_size > 1 {
-                // TODO: check this.
-                // Actually, we only need a path to the folder containing the images.
                 eprintln!("We only need the pattern.");
             } else {
                 let actual_inputs = actual_inputs.single();
@@ -349,7 +352,7 @@ fn main() {
 
                 let inputs = tmp_img_list.to_str().unwrap().to_string();
 
-                let mut video_args = Vec::new();
+                let mut video_args = Vec::with_capacity(50);
                 video_args.push(String::from("-y"));
                 video_args.push(String::from("-f"));
                 video_args.push(String::from("concat"));
@@ -369,17 +372,33 @@ fn main() {
                 run_ffmpeg(&video_args);
             }
         }
-        Commands::Audio => {
+        Commands::Audio { start, end } => {
             // we only expect ONE input.
             if inputs_size > 1 {
                 eprintln!("Too many inputs for this command!");
             } else {
+                if start.is_none() || end.is_none() {
+                    eprintln!("Need both start and end to clip audio");
+                    return;
+                }
+
                 let actual_inputs = actual_inputs.single();
-                let mut audio_args = Vec::new();
-                // overwrites file if it already exists.
+                let mut audio_args = Vec::with_capacity(50);
                 audio_args.push(String::from("-y"));
+
+                if let Some(start) = start {
+                    audio_args.push(String::from("-ss"));
+                    audio_args.push(format!("{start}"));
+                }
+
                 audio_args.push(String::from("-i"));
                 audio_args.push(format!("{actual_inputs}"));
+
+                if let Some(end) = end {
+                    audio_args.push(String::from("-to"));
+                    audio_args.push(format!("{end}"));
+                }
+
                 audio_args.push(String::from("-vn"));
                 audio_args.push(String::from("-c:a"));
                 audio_args.push(String::from("mp3"));
@@ -410,8 +429,7 @@ fn main() {
                 };
 
                 let actual_inputs = actual_inputs.single();
-                let mut encode_args = Vec::new();
-                // overwrites file if it already exists.
+                let mut encode_args = Vec::with_capacity(50);
                 encode_args.push(String::from("-y"));
                 encode_args.push(String::from("-i"));
                 encode_args.push(format!("{actual_inputs}"));
@@ -435,8 +453,7 @@ fn main() {
                 eprintln!("Too many inputs for this command!");
             } else {
                 let actual_inputs = actual_inputs.single();
-                let mut youtube_args = Vec::new();
-                // overwrites file if it already exists.
+                let mut youtube_args = Vec::with_capacity(50);
                 youtube_args.push(String::from("-y"));
                 youtube_args.push(String::from("-i"));
                 youtube_args.push(format!("{actual_inputs}"));
