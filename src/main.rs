@@ -1,4 +1,3 @@
-#![feature(iter_intersperse)]
 use std::{
     env::current_dir,
     fs::File,
@@ -63,9 +62,9 @@ use tempfile::tempdir_in;
 //     Speed up at specific sections in the video, slow and fast motions.
 //
 #[derive(Parser, Debug)]
-#[command(about = "Smol video tool that uses ffmpeg under the hood.")]
+#[command(about = "Smol video and audio tool that uses ffmpeg.")]
 #[command(version, long_about = None)]
-struct Yuh {
+struct Pepega {
     /// Inputs files.
     #[arg(short, required = true)]
     inputs: Vec<String>,
@@ -87,8 +86,8 @@ enum Commands {
     /// Merges two or more videos.
     Merge,
 
-    /// Creates a video from images with default of 5 seconds.
-    /// The time can be changed with FRAMERATE option, BETWEEN 1 and 10.
+    /// Creates a video from images with default of 5 seconds each.
+    /// This time can be changed with FRAMERATE option, BETWEEN 1 and 10.
     Video {
         #[arg(short, long, value_name = "FRAMERATE")]
         framerate: Option<i16>,
@@ -97,25 +96,25 @@ enum Commands {
     /// Extracts the audio stream from a video.
     Audio,
 
-    /// Encodes a video with default value of 23 for crf.
-    /// Optionally, can set a new value for CRF BETWEEN 0 and 51.
+    /// Encodes a video with default value of 23 for CRF.
+    /// This value can be changed with CRF option, BETWEEN 0 and 51.
     Encode {
         #[arg(short, long, value_name = "CRF")]
         crf: Option<i16>,
     },
 
-    /// Encodes a video for youtube.
+    /// Encodes a video with options specifically for youtube.
     Youtube,
 }
 
 fn run_ffmpeg(args: &[String]) {
     let msg = args;
     let msg = msg.join(" ");
-    print!("calling ffmpeg with args:\n\t( {msg} )\n\n");
+    print!("Calling ffmpeg with args:\n\t( {msg} )\n\n");
 
     let run_dummy = false;
     if run_dummy {
-        println!("calling ffmpeg with no args!");
+        println!("Calling ffmpeg with no args!");
         let ffmpeg = Command::new("ffmpeg")
             .arg("-version")
             .stdout(Stdio::piped())
@@ -184,7 +183,7 @@ impl Input {
 }
 
 fn main() {
-    let args = Yuh::parse();
+    let args = Pepega::parse();
 
     // check inputs files
     let inputs_size = args.inputs.len();
@@ -232,7 +231,7 @@ fn main() {
                 clip_args.push(String::from("-copyts"));
                 clip_args.push(format!("{actual_output}"));
 
-                println!("creating a clip of {actual_inputs} [{start}...{end}] -> {actual_output}");
+                println!("Creating a clip of {actual_inputs} [{start}...{end}] -> {actual_output}");
                 run_ffmpeg(&clip_args);
             }
         }
@@ -278,7 +277,7 @@ fn main() {
                 merge_args.push(String::from("yuv420p"));
                 merge_args.push(format!("{actual_output}"));
 
-                println!("merging {total_videos} videos in {inputs}");
+                println!("Merging {total_videos} videos in {inputs}");
                 run_ffmpeg(&merge_args);
             }
         }
@@ -299,7 +298,7 @@ fn main() {
                     Some(framerate) => {
                         if framerate < 1 && framerate > 10 {
                             println!(
-                                "framerate ({}) value out of range [1..10]. Defaulting to 5.",
+                                "Framerate ({}) value out of range [1..10]. Defaulting to 5.",
                                 framerate
                             );
                             5
@@ -357,7 +356,7 @@ fn main() {
                 video_args.push(String::from("yuv420p"));
                 video_args.push(format!("{actual_output}"));
 
-                println!("creating a video from {total_images} images in {inputs} with framerate 1/{framerate}");
+                println!("Creating a video from {total_images} images in {inputs} with framerate 1/{framerate}");
                 run_ffmpeg(&video_args);
             }
         }
@@ -376,7 +375,7 @@ fn main() {
                 audio_args.push(String::from("mp3"));
                 audio_args.push(format!("{actual_output}"));
 
-                println!("extracting audio of {actual_inputs} -> {actual_output}");
+                println!("Extracting audio of {actual_inputs} -> {actual_output}");
                 run_ffmpeg(&audio_args);
             }
         }
@@ -389,7 +388,7 @@ fn main() {
                     Some(crf) => {
                         if crf < 0 && crf > 51 {
                             println!(
-                                "crf ({}) value out of range [0..51]. Defaulting to 23.",
+                                "CRF ({}) value out of range [0..51]. Defaulting to 23.",
                                 crf
                             );
                             23
@@ -414,7 +413,7 @@ fn main() {
                 encode_args.push(format!("{actual_output}"));
 
                 println!(
-                    "encoding {actual_inputs} with libx264 crf={crf} audio stream is copied -> {actual_output}"
+                    "Encoding {actual_inputs} with libx264 crf={crf} audio stream is copied -> {actual_output}"
                 );
                 run_ffmpeg(&encode_args);
             }
@@ -443,7 +442,7 @@ fn main() {
                 youtube_args.push(String::from("yuv420p"));
                 youtube_args.push(format!("{actual_output}"));
 
-                println!("encoding video for youtube {actual_inputs} -> {actual_output}");
+                println!("Encoding video for youtube {actual_inputs} -> {actual_output}");
                 run_ffmpeg(&youtube_args);
             }
         }
