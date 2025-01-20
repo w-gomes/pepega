@@ -95,11 +95,7 @@ enum Commands {
     },
 
     /// Extracts the audio stream from a video.
-    /// Optionally, can set START and END.
-    Audio {
-        start: Option<String>,
-        end: Option<String>,
-    },
+    Audio,
 
     /// Encodes a video with default value of 23 for crf.
     /// Optionally, can set a new value for CRF BETWEEN 0 and 51.
@@ -365,37 +361,16 @@ fn main() {
                 run_ffmpeg(&video_args);
             }
         }
-        Commands::Audio { start, end } => {
+        Commands::Audio => {
             // we only expect ONE input.
             if inputs_size > 1 {
                 eprintln!("Too many inputs");
             } else {
-                if start.is_some() && end.is_none() {
-                    eprintln!("Need both start and end to clip audio");
-                    return;
-                }
-                if start.is_none() && end.is_some() {
-                    eprintln!("Need both start and end to clip audio");
-                    return;
-                }
-
                 let actual_inputs = actual_inputs.single();
                 let mut audio_args = Vec::with_capacity(50);
                 audio_args.push(String::from("-y"));
-
-                if let Some(start) = start {
-                    audio_args.push(String::from("-ss"));
-                    audio_args.push(format!("{start}"));
-                }
-
                 audio_args.push(String::from("-i"));
                 audio_args.push(format!("{actual_inputs}"));
-
-                if let Some(end) = end {
-                    audio_args.push(String::from("-to"));
-                    audio_args.push(format!("{end}"));
-                }
-
                 audio_args.push(String::from("-vn"));
                 audio_args.push(String::from("-c:a"));
                 audio_args.push(String::from("mp3"));
