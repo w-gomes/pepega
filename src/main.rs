@@ -409,7 +409,11 @@ fn main() {
                 encode_args.push(String::from("-crf"));
                 encode_args.push(format!("{crf}"));
                 encode_args.push(String::from("-c:a"));
-                encode_args.push(String::from("copy"));
+                encode_args.push(String::from("aac"));
+                encode_args.push(String::from("-b:a"));
+                encode_args.push(String::from("384k"));
+                encode_args.push(String::from("-pix_fmt"));
+                encode_args.push(String::from("yuv420p"));
                 encode_args.push(format!("{actual_output}"));
 
                 println!(
