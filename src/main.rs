@@ -316,7 +316,7 @@ fn main() -> Result<()> {
                 let tmp_dir = tempdir_in(".").expect("Failed to create a folder");
                 let tmp_img_list = tmp_dir.path().join("tmp_img_list.txt");
                 let mut tmp_img_list_file =
-                    File::create(&tmp_img_list).expect("Failed to create an tmp image list file");
+                    File::create(&tmp_img_list).expect("Failed to create a tmp image list file");
 
                 let mut total_images = 0;
 
