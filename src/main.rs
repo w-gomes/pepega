@@ -217,13 +217,14 @@ fn main() -> Result<()> {
         }
     } else {
         // multiple inputs
-        Input::Multiple(
-            args.inputs
-                .iter()
-                // TODO: Erm, how do we handle this Result?
-                .map(|input| full_path(Some(input.to_string())).unwrap())
-                .collect(),
-        )
+        let mut inputs = Vec::new();
+        for input in &args.inputs {
+            match full_path(Some(input.to_string())) {
+                Ok(value) => inputs.push(value),
+                Err(err) => bail!("Error getting the full path: {}", err),
+            }
+        }
+        Input::Multiple(inputs)
     };
 
     // currently we only suport single output.
