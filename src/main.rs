@@ -158,6 +158,7 @@ fn full_path(file: Option<String>) -> Result<String> {
     }
 }
 
+#[derive(Debug)]
 enum Input {
     Single(String),
     Multiple(Vec<String>),
@@ -238,15 +239,13 @@ fn main() -> Result<()> {
         Commands::Merge => {
             // TODO: Research concatenating streams with filters.
             // we expect more TWO or MORE inputs.
+            //
+            // Also do what we do in Video. Just merge every video
+            // inside a directory that contains .mp4 and/or .mkv extensions.
             if inputs_size < 2 {
                 eprintln!("Not enough inputs");
             } else {
-                // we first append -i to every input
-                let actual_inputs = actual_inputs
-                    .multiple()
-                    .iter()
-                    .map(|video| PathBuf::from(video.clone()).to_str().unwrap().to_string())
-                    .collect::<Vec<String>>();
+                let actual_inputs = actual_inputs.multiple();
 
                 // Create temporary dir and file
                 let tmp_dir = tempdir_in(".").expect("Failed to create a folder");
@@ -287,6 +286,8 @@ fn main() -> Result<()> {
                 eprintln!("Too many inputs");
             } else {
                 let actual_inputs = actual_inputs.single();
+
+                // We instantiate a PathBuf to iterate the directory.
                 let input_path = PathBuf::from(actual_inputs.clone());
                 if !input_path.is_dir() {
                     bail!("{} is not a directory.", actual_inputs);
