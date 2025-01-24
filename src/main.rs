@@ -6,6 +6,7 @@ use std::{
     process::{Command, Stdio},
 };
 
+use anyhow::{bail, Result};
 use clap::{Parser, Subcommand};
 use tempfile::tempdir_in;
 
@@ -107,10 +108,10 @@ enum Commands {
     Youtube,
 }
 
-fn run_ffmpeg(args: &[String]) {
+fn run_ffmpeg(args: &[String]) -> Result<&str, anyhow::Error> {
     let msg = args;
     let msg = msg.join(" ");
-    print!("Calling ffmpeg with args:\n\t( {msg} )\n\n");
+    print!("Calling ffmpeg with args:\n( {msg} )\n\n");
 
     let run_dummy = false;
     if run_dummy {
@@ -118,47 +119,43 @@ fn run_ffmpeg(args: &[String]) {
         let ffmpeg = Command::new("ffmpeg")
             .arg("-version")
             .stdout(Stdio::piped())
-            .spawn()
-            .expect("Failed to execute ffmpeg.");
-        let output = ffmpeg
-            .wait_with_output()
-            .expect("Failed to get the output.");
+            .spawn()?;
+
+        let output = ffmpeg.wait_with_output()?;
         if !output.status.success() {
-            eprint!(
-                "-- Failed to execute ffmpeg. Error code: {} -- ",
-                output.status.code().unwrap()
-            );
-        } else {
-            println!("\nDone!");
+            let code = output.status.code();
+            bail!("-- Failed to execute ffmpeg. Error code: {:?} -- ", code);
         }
     } else {
         let ffmpeg = Command::new("ffmpeg")
             .args(args)
             .stdout(Stdio::piped())
-            .spawn()
-            .expect("Failed to execute ffmpeg.");
+            .spawn()?;
 
-        let output = ffmpeg
-            .wait_with_output()
-            .expect("Failed to get the output.");
+        let output = ffmpeg.wait_with_output()?;
         if !output.status.success() {
-            eprint!(
-                "-- Failed to execute ffmpeg. Error code: {} -- ",
-                output.status.code().unwrap()
-            );
-        } else {
-            println!("\nDone!");
+            let code = output.status.code();
+            bail!("-- Failed to execute ffmpeg. Error code: {:?} -- ", code);
         }
     }
+    Ok("\nSuccessfully ran ffmpeg!")
 }
 
-fn full_path(file: String) -> String {
-    current_dir()
-        .unwrap()
-        .join(file)
-        .to_str()
-        .unwrap()
-        .to_string()
+fn full_path(file: Option<String>) -> Result<String> {
+    let dir = current_dir()?;
+    if let Some(file) = file {
+        if let Some(full_dir) = dir.join(file).to_str() {
+            Ok(full_dir.to_string())
+        } else {
+            bail!("Error converting to str.");
+        }
+    } else {
+        if let Some(dir) = dir.to_str() {
+            Ok(dir.to_string())
+        } else {
+            bail!("Error converting to str.");
+        }
+    }
 }
 
 enum Input {
@@ -182,7 +179,7 @@ impl Input {
     }
 }
 
-fn main() {
+fn main() -> Result<()> {
     let args = Pepega::parse();
 
     // check inputs files
@@ -194,22 +191,25 @@ fn main() {
         let single_input = args.inputs[0].clone();
         // if input is a '.', then we call env::current_dir()
         if single_input == "." {
-            Input::Single(current_dir().unwrap().to_str().unwrap().to_string())
+            let full_path = full_path(None)?;
+            Input::Single(full_path)
         } else {
-            Input::Single(full_path(single_input))
+            let full_path = full_path(Some(single_input))?;
+            Input::Single(full_path)
         }
     } else {
         // multiple inputs
         Input::Multiple(
             args.inputs
                 .iter()
-                .map(|input| full_path(input.to_string()))
+                // TODO: Erm, how do we handle this Result?
+                .map(|input| full_path(Some(input.to_string())).unwrap())
                 .collect(),
         )
     };
 
     // currently we only suport single output.
-    let actual_output = full_path(args.output);
+    let actual_output = full_path(Some(args.output))?;
 
     match args.command {
         Commands::Clip { start, end } => {
@@ -232,7 +232,7 @@ fn main() {
                 clip_args.push(format!("{actual_output}"));
 
                 println!("Creating a clip of {actual_inputs} [{start}...{end}] -> {actual_output}");
-                run_ffmpeg(&clip_args);
+                println!("{}", run_ffmpeg(&clip_args)?);
             }
         }
         Commands::Merge => {
@@ -278,7 +278,7 @@ fn main() {
                 merge_args.push(format!("{actual_output}"));
 
                 println!("Merging {total_videos} videos in {inputs}");
-                run_ffmpeg(&merge_args);
+                println!("{}", run_ffmpeg(&merge_args)?);
             }
         }
 
@@ -289,9 +289,7 @@ fn main() {
                 let actual_inputs = actual_inputs.single();
                 let input_path = PathBuf::from(actual_inputs.clone());
                 if !input_path.is_dir() {
-                    eprintln!("{} is not a directory.", actual_inputs);
-                    // do we return here?
-                    return;
+                    bail!("{} is not a directory.", actual_inputs);
                 }
 
                 let framerate = match framerate {
@@ -357,7 +355,7 @@ fn main() {
                 video_args.push(format!("{actual_output}"));
 
                 println!("Creating a video from {total_images} images in {inputs} with framerate 1/{framerate}");
-                run_ffmpeg(&video_args);
+                println!("{}", run_ffmpeg(&video_args)?);
             }
         }
         Commands::Audio => {
@@ -376,7 +374,7 @@ fn main() {
                 audio_args.push(format!("{actual_output}"));
 
                 println!("Extracting audio of {actual_inputs} -> {actual_output}");
-                run_ffmpeg(&audio_args);
+                println!("{}", run_ffmpeg(&audio_args)?);
             }
         }
         Commands::Encode { crf } => {
@@ -419,7 +417,7 @@ fn main() {
                 println!(
                     "Encoding {actual_inputs} with libx264 crf={crf} audio stream is copied -> {actual_output}"
                 );
-                run_ffmpeg(&encode_args);
+                println!("{}", run_ffmpeg(&encode_args)?);
             }
         }
         Commands::Youtube => {
@@ -447,8 +445,10 @@ fn main() {
                 youtube_args.push(format!("{actual_output}"));
 
                 println!("Encoding video for youtube {actual_inputs} -> {actual_output}");
-                run_ffmpeg(&youtube_args);
+                println!("{}", run_ffmpeg(&youtube_args)?);
             }
         }
     }
+
+    Ok(())
 }
