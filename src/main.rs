@@ -271,7 +271,10 @@ fn main() -> Result<()> {
                     total_videos += 1;
                 }
 
-                let inputs = tmp_list.to_str().unwrap().to_string();
+                let inputs = tmp_list
+                    .to_str()
+                    .context("Failed to convert to &str.")?
+                    .to_string();
                 let args = MERGE
                     .replace("INPUTS", &inputs)
                     .replace("OUTPUT", &actual_output);
@@ -326,7 +329,8 @@ fn main() -> Result<()> {
                 {
                     if let Ok(entry) = entry {
                         let entry_path = entry.path();
-                        let entry_path_str = entry_path.to_str().unwrap();
+                        let entry_path_str =
+                            entry_path.to_str().context("Failed to convert to &str.")?;
                         if entry_path_str.ends_with("png") {
                             writeln!(tmp_img_list_file, "file '{}'", entry_path_str)
                                 .expect("Failed to write to tmp_img_list_file");
@@ -337,7 +341,10 @@ fn main() -> Result<()> {
                     }
                 }
 
-                let inputs = tmp_img_list.to_str().unwrap().to_string();
+                let inputs = tmp_img_list
+                    .to_str()
+                    .context("Failed to convert to &str.")?
+                    .to_string();
                 let args = VIDEO
                     .replace("INPUTS", &inputs)
                     .replace("OUTPUT", &actual_output);
