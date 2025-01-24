@@ -108,8 +108,23 @@ enum Commands {
     Youtube,
 }
 
-fn run_ffmpeg(args: &[String]) -> Result<&str> {
-    let msg = args;
+// ffmpeg args
+static CLIP: &'static str = "-y -ss START -i INPUTS -to END -c copy -copyts OUTPUT";
+
+static MERGE: &'static str = "-y -f concat -safe 0 -i INPUTS -c:v libx264 -pix-fmt yuv420p OUTPUT";
+
+static VIDEO: &'static str =
+    "-y -f concat -safe 0 -i INPUTS -c:v libx264 -r 30 -pix_fmt yuv420p OUTPUT";
+
+static AUDIO: &'static str = "-y -i INPUTS -vn -c:a mp3 OUTPUT";
+
+static ENCODE: &'static str =
+    "-y -i INPUTS -c:v libx264 -crf CRF -c:a aac -b:a 384k -pix_fmt yuv420p OUTPUT";
+
+static YOUTUBE: &'static str = "-y -i INPUTS -c:v libx264 -crf 18 -preset ultrafast -c:a acc -b:a 384k -pix_fmt yuv420p OUTPUT";
+
+fn run_ffmpeg(args: Vec<&str>) -> Result<&'static str> {
+    let msg = &args;
     let msg = msg.join(" ");
     print!("Calling ffmpeg with args:\n( {msg} )\n\n");
 
@@ -221,21 +236,14 @@ fn main() -> Result<()> {
                 eprintln!("Too many inputs");
             } else {
                 let actual_inputs = actual_inputs.single();
-                let mut clip_args = Vec::with_capacity(50);
-                clip_args.push(String::from("-y"));
-                clip_args.push(String::from("-ss"));
-                clip_args.push(format!("{start}"));
-                clip_args.push(String::from("-i"));
-                clip_args.push(format!("{actual_inputs}"));
-                clip_args.push(String::from("-to"));
-                clip_args.push(format!("{end}"));
-                clip_args.push(String::from("-c"));
-                clip_args.push(String::from("copy"));
-                clip_args.push(String::from("-copyts"));
-                clip_args.push(format!("{actual_output}"));
-
+                let args = CLIP
+                    .replace("START", &start)
+                    .replace("INPUTS", &actual_inputs)
+                    .replace("END", &end)
+                    .replace("OUTPUT", &actual_output);
+                let args = args.split_whitespace().collect::<Vec<&str>>();
                 println!("Creating a clip of {actual_inputs} [{start}...{end}] -> {actual_output}");
-                println!("{}", run_ffmpeg(&clip_args)?);
+                println!("{}", run_ffmpeg(args)?);
             }
         }
         Commands::Merge => {
@@ -264,22 +272,12 @@ fn main() -> Result<()> {
                 }
 
                 let inputs = tmp_list.to_str().unwrap().to_string();
-                let mut merge_args = Vec::with_capacity(50);
-                merge_args.push(String::from("-y"));
-                merge_args.push(String::from("-f"));
-                merge_args.push(String::from("concat"));
-                merge_args.push(String::from("-safe"));
-                merge_args.push(String::from("0"));
-                merge_args.push(String::from("-i"));
-                merge_args.push(format!("{inputs}"));
-                merge_args.push(String::from("-c:v"));
-                merge_args.push(String::from("libx264"));
-                merge_args.push(String::from("-pix_fmt"));
-                merge_args.push(String::from("yuv420p"));
-                merge_args.push(format!("{actual_output}"));
-
+                let args = MERGE
+                    .replace("INPUTS", &inputs)
+                    .replace("OUTPUT", &actual_output);
+                let args = args.split_whitespace().collect::<Vec<&str>>();
                 println!("Merging {total_videos} videos in {inputs}");
-                println!("{}", run_ffmpeg(&merge_args)?);
+                println!("{}", run_ffmpeg(args)?);
             }
         }
 
@@ -340,25 +338,12 @@ fn main() -> Result<()> {
                 }
 
                 let inputs = tmp_img_list.to_str().unwrap().to_string();
-
-                let mut video_args = Vec::with_capacity(50);
-                video_args.push(String::from("-y"));
-                video_args.push(String::from("-f"));
-                video_args.push(String::from("concat"));
-                video_args.push(String::from("-safe"));
-                video_args.push(String::from("0"));
-                video_args.push(String::from("-i"));
-                video_args.push(format!("{inputs}"));
-                video_args.push(String::from("-c:v"));
-                video_args.push(String::from("libx264"));
-                video_args.push(String::from("-r"));
-                video_args.push(String::from("30"));
-                video_args.push(String::from("-pix_fmt"));
-                video_args.push(String::from("yuv420p"));
-                video_args.push(format!("{actual_output}"));
-
+                let args = VIDEO
+                    .replace("INPUTS", &inputs)
+                    .replace("OUTPUT", &actual_output);
+                let args = args.split_whitespace().collect::<Vec<&str>>();
                 println!("Creating a video from {total_images} images in {inputs} with framerate 1/{framerate}");
-                println!("{}", run_ffmpeg(&video_args)?);
+                println!("{}", run_ffmpeg(args)?);
             }
         }
         Commands::Audio => {
@@ -367,17 +352,12 @@ fn main() -> Result<()> {
                 eprintln!("Too many inputs");
             } else {
                 let actual_inputs = actual_inputs.single();
-                let mut audio_args = Vec::with_capacity(50);
-                audio_args.push(String::from("-y"));
-                audio_args.push(String::from("-i"));
-                audio_args.push(format!("{actual_inputs}"));
-                audio_args.push(String::from("-vn"));
-                audio_args.push(String::from("-c:a"));
-                audio_args.push(String::from("mp3"));
-                audio_args.push(format!("{actual_output}"));
-
+                let args = AUDIO
+                    .replace("INPUTS", &actual_inputs)
+                    .replace("OUTPUT", &actual_output);
+                let args = args.split_whitespace().collect::<Vec<&str>>();
                 println!("Extracting audio of {actual_inputs} -> {actual_output}");
-                println!("{}", run_ffmpeg(&audio_args)?);
+                println!("{}", run_ffmpeg(args)?);
             }
         }
         Commands::Encode { crf } => {
@@ -401,26 +381,13 @@ fn main() -> Result<()> {
                 };
 
                 let actual_inputs = actual_inputs.single();
-                let mut encode_args = Vec::with_capacity(50);
-                encode_args.push(String::from("-y"));
-                encode_args.push(String::from("-i"));
-                encode_args.push(format!("{actual_inputs}"));
-                encode_args.push(String::from("-c:v"));
-                encode_args.push(String::from("libx264"));
-                encode_args.push(String::from("-crf"));
-                encode_args.push(format!("{crf}"));
-                encode_args.push(String::from("-c:a"));
-                encode_args.push(String::from("aac"));
-                encode_args.push(String::from("-b:a"));
-                encode_args.push(String::from("384k"));
-                encode_args.push(String::from("-pix_fmt"));
-                encode_args.push(String::from("yuv420p"));
-                encode_args.push(format!("{actual_output}"));
-
-                println!(
-                    "Encoding {actual_inputs} with libx264 crf={crf} audio stream is copied -> {actual_output}"
-                );
-                println!("{}", run_ffmpeg(&encode_args)?);
+                let args = ENCODE
+                    .replace("INPUTS", &actual_inputs)
+                    .replace("CRF", &crf.to_string())
+                    .replace("OUTPUT", &actual_output);
+                let args = args.split_whitespace().collect::<Vec<&str>>();
+                println!("Encoding {actual_inputs} with libx264 crf={crf} -> {actual_output}");
+                println!("{}", run_ffmpeg(args)?);
             }
         }
         Commands::Youtube => {
@@ -429,26 +396,12 @@ fn main() -> Result<()> {
                 eprintln!("Too many inputs");
             } else {
                 let actual_inputs = actual_inputs.single();
-                let mut youtube_args = Vec::with_capacity(50);
-                youtube_args.push(String::from("-y"));
-                youtube_args.push(String::from("-i"));
-                youtube_args.push(format!("{actual_inputs}"));
-                youtube_args.push(String::from("-c:v"));
-                youtube_args.push(String::from("libx264"));
-                youtube_args.push(String::from("-crf"));
-                youtube_args.push(String::from("18"));
-                youtube_args.push(String::from("-preset"));
-                youtube_args.push(String::from("ultrafast"));
-                youtube_args.push(String::from("-c:a"));
-                youtube_args.push(String::from("aac"));
-                youtube_args.push(String::from("-b:a"));
-                youtube_args.push(String::from("384k"));
-                youtube_args.push(String::from("-pix_fmt"));
-                youtube_args.push(String::from("yuv420p"));
-                youtube_args.push(format!("{actual_output}"));
-
+                let args = YOUTUBE
+                    .replace("INPUTS", &actual_inputs)
+                    .replace("OUTPUT", &actual_output);
+                let args = args.split_whitespace().collect::<Vec<&str>>();
                 println!("Encoding video for youtube {actual_inputs} -> {actual_output}");
-                println!("{}", run_ffmpeg(&youtube_args)?);
+                println!("{}", run_ffmpeg(args)?);
             }
         }
     }
