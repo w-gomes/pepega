@@ -6,7 +6,7 @@ use std::{
     process::{Command, Stdio},
 };
 
-use anyhow::{bail, Result};
+use anyhow::{bail, Context, Result};
 use clap::{Parser, Subcommand};
 use tempfile::tempdir_in;
 
@@ -108,7 +108,7 @@ enum Commands {
     Youtube,
 }
 
-fn run_ffmpeg(args: &[String]) -> Result<&str, anyhow::Error> {
+fn run_ffmpeg(args: &[String]) -> Result<&str> {
     let msg = args;
     let msg = msg.join(" ");
     print!("Calling ffmpeg with args:\n( {msg} )\n\n");
@@ -123,8 +123,10 @@ fn run_ffmpeg(args: &[String]) -> Result<&str, anyhow::Error> {
 
         let output = ffmpeg.wait_with_output()?;
         if !output.status.success() {
-            let code = output.status.code();
-            bail!("-- Failed to execute ffmpeg. Error code: {:?} -- ", code);
+            bail!(
+                "-- Failed to execute ffmpeg. Error code: {:?} -- ",
+                output.status.code()
+            );
         }
     } else {
         let ffmpeg = Command::new("ffmpeg")
@@ -134,8 +136,10 @@ fn run_ffmpeg(args: &[String]) -> Result<&str, anyhow::Error> {
 
         let output = ffmpeg.wait_with_output()?;
         if !output.status.success() {
-            let code = output.status.code();
-            bail!("-- Failed to execute ffmpeg. Error code: {:?} -- ", code);
+            bail!(
+                "-- Failed to execute ffmpeg. Error code: {:?} -- ",
+                output.status.code()
+            );
         }
     }
     Ok("\nSuccessfully ran ffmpeg!")
@@ -144,17 +148,16 @@ fn run_ffmpeg(args: &[String]) -> Result<&str, anyhow::Error> {
 fn full_path(file: Option<String>) -> Result<String> {
     let dir = current_dir()?;
     if let Some(file) = file {
-        if let Some(full_dir) = dir.join(file).to_str() {
-            Ok(full_dir.to_string())
-        } else {
-            bail!("Error converting to str.");
-        }
+        Ok(dir
+            .join(file)
+            .to_str()
+            .context("Failed to convert to &str.")?
+            .to_string())
     } else {
-        if let Some(dir) = dir.to_str() {
-            Ok(dir.to_string())
-        } else {
-            bail!("Error converting to str.");
-        }
+        Ok(dir
+            .to_str()
+            .context("Failed to convert to &str.")?
+            .to_string())
     }
 }
 
@@ -190,7 +193,6 @@ fn main() -> Result<()> {
     let actual_inputs = if inputs_size == 1 {
         // single input
         let single_input = args.inputs[0].clone();
-        // if input is a '.', then we call env::current_dir()
         if single_input == "." {
             let full_path = full_path(None)?;
             Input::Single(full_path)
