@@ -11,41 +11,22 @@ use clap::{Parser, Subcommand};
 use tempfile::tempdir_in;
 
 // - Future ideas
-// General Design:
-//  Currently we are doing a bunch of push calls to vec.
-//  Research a way to avoid that. Maybe Vec::with_capacity
-//  or vec![...] and replace the fields with parameters...
-//
-// Options:
-//  -i <INPUTS>, -o <OUTPUT>
-//  At the moment we are reading the inputs and output as Vec<String> and String
-//  respectively.
-//  We want to start to use PathBuf that way we can check if the arguments
-//  entered are actually files or a directory.
-//  The idea is to use PathBuf. So that we can check if the inputs are actually
-//  files or a directory. And the output we can check if the directory is also
-//  valid.
-//  We can also check, for example, for the video command we can enter `.`,
-//  which means run the command on the current directory. So we can check for
-//  this input and run std::fs::current_dir and pass that to PathBuf and get
-//  the absolute path.
-//  We can use an Enum and match those inputs and pass that to the Commands.
-//  A bit of engineering will be required.
-//
 // Commands:
 // * Clip
 //   At the moment we are copying video and audio streams as well as timestamp.
 //   Add an option to each stream or both. E.g. --reencode
 //
 // * Merge
-//   At the moment, merge is incomplete, but after implementing video command.
-//   We could implement this in the same way. Just take the the path to
-//   a directory containing all the video that we want to merge.
-//   Moreover, we can also check if all the files ends with .mp4 or .mkv and
-//   filter out all different files without those extensions.
+//   At the moment we are multiple videos from the command line using -i flags.
+//   It can be a bit tedious if we have a lot of videos.
+//   Implement passing the directory and just merge everything in there that
+//   has .mp4 or .mkv extensions.
 //
 // * Video
 //   Mostly complete. We should also check for images with different extensions.
+//   Currently, for Video command we only support directory as inputs.
+//   The video is created from all the images with .png extension inside the dir.
+//   Do we want to support specified files like the Merge command?
 //
 // * Audio
 //   At the moment we are extracting audio from the entire video file.
@@ -82,6 +63,8 @@ struct Pepega {
 #[derive(Subcommand, Debug)]
 enum Commands {
     /// Creates a clip of a video with START and END positions.
+    /// All streams and timestamp are copied.
+    /// You might want to encode after this with encode command.
     Clip { start: String, end: String },
 
     /// Merges two or more videos.
