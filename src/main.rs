@@ -180,6 +180,11 @@ impl Input {
     }
 }
 
+enum InputType {
+    Directory,
+    File,
+}
+
 fn main() -> Result<()> {
     let args = Pepega::parse();
 
@@ -235,6 +240,32 @@ fn main() -> Result<()> {
             //
             // Also do what we do in Video. Just merge every video
             // inside a directory that contains .mp4 and/or .mkv extensions.
+
+            let actual_inputs = match actual_inputs {
+                Input::Single(input) if input.len() > 1 => bail!("Not enough inputs to merge"),
+                Input::Single(input) if input == "." => {
+                    (InputType::Directory, Input::Single(input))
+                }
+                Input::Multiple(inputs) => (InputType::File, Input::Multiple(inputs)),
+            };
+
+            // Make a temporarary directory containing all the inputs.
+            // TODO: We should probably make a function that does this.
+            let tmp_dir = match actual_inputs {
+                // It's a single directory, we iterator over that and read
+                // each entry checking if they end with mp4 or mkv and write their
+                // absolute path to a file
+                (InputType::Directory, i) => {
+                    let input_path = PathBuf::from(i.clone());
+                    if !input_path.is_dir() {
+                        bail!("{} is not a directory.", actual_inputs);
+                    }
+                }
+                // It's multiple files, we iterate over them and write their
+                // absolute path to a file.
+                (InputType::File, i) => {}
+            };
+
             if inputs_size < 2 {
                 eprintln!("Not enough inputs");
             } else {
