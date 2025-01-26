@@ -109,19 +109,18 @@ enum Commands {
 }
 
 // ffmpeg args
-static CLIP: &'static str = "-y -ss START -i INPUTS -to END -c copy -copyts OUTPUT";
+static CLIP: &str = "-y -ss START -i INPUTS -to END -c copy -copyts OUTPUT";
 
-static MERGE: &'static str = "-y -f concat -safe 0 -i INPUTS -c:v libx264 -pix-fmt yuv420p OUTPUT";
+static MERGE: &str = "-y -f concat -safe 0 -i INPUTS -c:v libx264 -pix-fmt yuv420p OUTPUT";
 
-static VIDEO: &'static str =
-    "-y -f concat -safe 0 -i INPUTS -c:v libx264 -r 30 -pix_fmt yuv420p OUTPUT";
+static VIDEO: &str = "-y -f concat -safe 0 -i INPUTS -c:v libx264 -r 30 -pix_fmt yuv420p OUTPUT";
 
-static AUDIO: &'static str = "-y -i INPUTS -vn -c:a mp3 OUTPUT";
+static AUDIO: &str = "-y -i INPUTS -vn -c:a mp3 OUTPUT";
 
-static ENCODE: &'static str =
+static ENCODE: &str =
     "-y -i INPUTS -c:v libx264 -crf CRF -c:a aac -b:a 384k -pix_fmt yuv420p OUTPUT";
 
-static YOUTUBE: &'static str = "-y -i INPUTS -c:v libx264 -crf 18 -preset ultrafast -c:a acc -b:a 384k -pix_fmt yuv420p OUTPUT";
+static YOUTUBE: &str = "-y -i INPUTS -c:v libx264 -crf 18 -preset ultrafast -c:a acc -b:a 384k -pix_fmt yuv420p OUTPUT";
 
 fn run_ffmpeg(args: Vec<&str>) -> Result<&'static str> {
     let msg = &args;
@@ -299,7 +298,7 @@ fn main() -> Result<()> {
 
                 let framerate = match framerate {
                     Some(framerate) => {
-                        if framerate < 1 && framerate > 10 {
+                        if !(1..=10).contains(&framerate) {
                             println!(
                                 "Framerate ({}) value out of range [1..10]. Defaulting to 5.",
                                 framerate
@@ -327,18 +326,17 @@ fn main() -> Result<()> {
                 for entry in input_path
                     .read_dir()
                     .expect("Failed to read entries in directory")
+                    .flatten()
                 {
-                    if let Ok(entry) = entry {
-                        let entry_path = entry.path();
-                        let entry_path_str =
-                            entry_path.to_str().context("Failed to convert to &str.")?;
-                        if entry_path_str.ends_with("png") {
-                            writeln!(tmp_img_list_file, "file '{}'", entry_path_str)
-                                .expect("Failed to write to tmp_img_list_file");
-                            writeln!(tmp_img_list_file, "duration {}", framerate)
-                                .expect("Failed to write to tmp_img_list_file");
-                            total_images += 1;
-                        }
+                    let entry_path = entry.path();
+                    let entry_path_str =
+                        entry_path.to_str().context("Failed to convert to &str.")?;
+                    if entry_path_str.ends_with("png") {
+                        writeln!(tmp_img_list_file, "file '{}'", entry_path_str)
+                            .expect("Failed to write to tmp_img_list_file");
+                        writeln!(tmp_img_list_file, "duration {}", framerate)
+                            .expect("Failed to write to tmp_img_list_file");
+                        total_images += 1;
                     }
                 }
 
@@ -375,7 +373,7 @@ fn main() -> Result<()> {
             } else {
                 let crf = match crf {
                     Some(crf) => {
-                        if crf < 0 && crf > 51 {
+                        if !(0..=51).contains(&crf) {
                             println!(
                                 "CRF ({}) value out of range [0..51]. Defaulting to 23.",
                                 crf
