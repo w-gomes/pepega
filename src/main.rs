@@ -239,27 +239,26 @@ fn main() -> Result<()> {
 
     match args.command {
         Commands::Clip { start, end } => {
-            // we only expect ONE input.
             if ctx.input_size > 1 {
-                eprintln!("Too many inputs");
-            } else {
-                if ctx.input_type != InputType::File {
-                    bail!("Input is not a file.");
-                }
-
-                let actual_inputs = ctx.input.single();
-                let args = CLIP
-                    .replace("START", &start)
-                    .replace("INPUTS", &actual_inputs)
-                    .replace("END", &end)
-                    .replace("OUTPUT", &ctx.output);
-                let args = args.split_whitespace().collect::<Vec<&str>>();
-                println!(
-                    "Creating a clip of {actual_inputs} [{start}...{end}] -> {0}",
-                    ctx.output
-                );
-                println!("{}", run_ffmpeg(args)?);
+                bail!("Too many inputs");
             }
+
+            if ctx.input_type != InputType::File {
+                bail!("Input is not a file.");
+            }
+
+            let actual_inputs = ctx.input.single();
+            let args = CLIP
+                .replace("START", &start)
+                .replace("INPUTS", &actual_inputs)
+                .replace("END", &end)
+                .replace("OUTPUT", &ctx.output);
+            let args = args.split_whitespace().collect::<Vec<&str>>();
+            println!(
+                "Creating a clip of {actual_inputs} [{start}...{end}] -> {0}",
+                ctx.output
+            );
+            println!("{}", run_ffmpeg(args)?);
         }
         Commands::Merge => {
             // TODO: Research concatenating streams with filters.
@@ -327,141 +326,137 @@ fn main() -> Result<()> {
 
         Commands::Video { framerate } => {
             if ctx.input_size > 1 {
-                eprintln!("Too many inputs");
-            } else {
-                if ctx.input_type != InputType::Directory {
-                    bail!("input is not a directory.");
-                }
-
-                let framerate = match framerate {
-                    Some(framerate) => {
-                        if !(1..=10).contains(&framerate) {
-                            println!(
-                                "Framerate ({}) value out of range [1..10]. Defaulting to 5.",
-                                framerate
-                            );
-                            5
-                        } else {
-                            framerate
-                        }
-                    }
-                    None => 5,
-                };
-
-                // Create temporary dir and file
-                let tmp_dir = tempdir_in(".").expect("Failed to create a folder");
-                let tmp_list = tmp_dir.path().join("tmp_list.txt");
-                let mut tmp_list_file =
-                    File::create(&tmp_list).expect("Failed to create a tmp image list file");
-
-                let mut total_images = 0;
-
-                let actual_inputs = ctx.input.single();
-                let input_path = PathBuf::from(actual_inputs);
-                for entry in input_path
-                    .read_dir()
-                    .expect("Failed to read entries in directory")
-                    .flatten()
-                {
-                    let entry_path = entry.path();
-                    let entry_path_str =
-                        entry_path.to_str().context("Failed to convert to &str.")?;
-                    if entry_path_str.ends_with("png") || entry_path_str.ends_with("jpg") {
-                        writeln!(tmp_list_file, "file '{}'", entry_path_str)
-                            .expect("Failed to write to tmp_list_file");
-                        writeln!(tmp_list_file, "duration {}", framerate)
-                            .expect("Failed to write to tmp_list_file");
-                        total_images += 1;
-                    }
-                }
-
-                let inputs = tmp_list
-                    .to_str()
-                    .context("Failed to convert to &str.")?
-                    .to_string();
-                let args = VIDEO
-                    .replace("INPUTS", &inputs)
-                    .replace("OUTPUT", &ctx.output);
-                let args = args.split_whitespace().collect::<Vec<&str>>();
-                println!("Creating a video from {total_images} images in {inputs} with framerate 1/{framerate}");
-                println!("{}", run_ffmpeg(args)?);
+                bail!("Too many inputs");
             }
+
+            if ctx.input_type != InputType::Directory {
+                bail!("input is not a directory.");
+            }
+
+            let framerate = match framerate {
+                Some(framerate) => {
+                    if !(1..=10).contains(&framerate) {
+                        println!(
+                            "Framerate ({}) value out of range [1..10]. Defaulting to 5.",
+                            framerate
+                        );
+                        5
+                    } else {
+                        framerate
+                    }
+                }
+                None => 5,
+            };
+
+            // Create temporary dir and file
+            let tmp_dir = tempdir_in(".").expect("Failed to create a folder");
+            let tmp_list = tmp_dir.path().join("tmp_list.txt");
+            let mut tmp_list_file =
+                File::create(&tmp_list).expect("Failed to create a tmp image list file");
+
+            let mut total_images = 0;
+
+            let actual_inputs = ctx.input.single();
+            let input_path = PathBuf::from(actual_inputs);
+            for entry in input_path
+                .read_dir()
+                .expect("Failed to read entries in directory")
+                .flatten()
+            {
+                let entry_path = entry.path();
+                let entry_path_str = entry_path.to_str().context("Failed to convert to &str.")?;
+                if entry_path_str.ends_with("png") || entry_path_str.ends_with("jpg") {
+                    writeln!(tmp_list_file, "file '{}'", entry_path_str)
+                        .expect("Failed to write to tmp_list_file");
+                    writeln!(tmp_list_file, "duration {}", framerate)
+                        .expect("Failed to write to tmp_list_file");
+                    total_images += 1;
+                }
+            }
+
+            let inputs = tmp_list
+                .to_str()
+                .context("Failed to convert to &str.")?
+                .to_string();
+            let args = VIDEO
+                .replace("INPUTS", &inputs)
+                .replace("OUTPUT", &ctx.output);
+            let args = args.split_whitespace().collect::<Vec<&str>>();
+            println!("Creating a video from {total_images} images in {inputs} with framerate 1/{framerate}");
+            println!("{}", run_ffmpeg(args)?);
         }
         Commands::Audio => {
-            // we only expect ONE input.
             if ctx.input_size > 1 {
-                eprintln!("Too many inputs");
-            } else {
-                if ctx.input_type != InputType::File {
-                    bail!("Input is not a file.");
-                }
-
-                let actual_inputs = ctx.input.single();
-                let args = AUDIO
-                    .replace("INPUTS", &actual_inputs)
-                    .replace("OUTPUT", &ctx.output);
-                let args = args.split_whitespace().collect::<Vec<&str>>();
-                println!("Extracting audio of {actual_inputs} -> {0}", ctx.output);
-                println!("{}", run_ffmpeg(args)?);
+                bail!("Too many inputs");
             }
+
+            if ctx.input_type != InputType::File {
+                bail!("Input is not a file.");
+            }
+
+            let actual_inputs = ctx.input.single();
+            let args = AUDIO
+                .replace("INPUTS", &actual_inputs)
+                .replace("OUTPUT", &ctx.output);
+            let args = args.split_whitespace().collect::<Vec<&str>>();
+            println!("Extracting audio of {actual_inputs} -> {0}", ctx.output);
+            println!("{}", run_ffmpeg(args)?);
         }
         Commands::Encode { crf } => {
-            // we only expect ONE input.
             if ctx.input_size > 1 {
-                eprintln!("Too many inputs");
-            } else {
-                if ctx.input_type != InputType::File {
-                    bail!("Input is not a file.");
-                }
-
-                let crf = match crf {
-                    Some(crf) => {
-                        if !(0..=51).contains(&crf) {
-                            println!(
-                                "CRF ({}) value out of range [0..51]. Defaulting to 23.",
-                                crf
-                            );
-                            23
-                        } else {
-                            crf
-                        }
-                    }
-                    None => 23,
-                };
-
-                let actual_inputs = ctx.input.single();
-                let args = ENCODE
-                    .replace("INPUTS", &actual_inputs)
-                    .replace("CRF", &crf.to_string())
-                    .replace("OUTPUT", &ctx.output);
-                let args = args.split_whitespace().collect::<Vec<&str>>();
-                println!(
-                    "Encoding {actual_inputs} with libx264 crf={crf} -> {0}",
-                    ctx.output
-                );
-                println!("{}", run_ffmpeg(args)?);
+                bail!("Too many inputs");
             }
+
+            if ctx.input_type != InputType::File {
+                bail!("Input is not a file.");
+            }
+
+            let crf = match crf {
+                Some(crf) => {
+                    if !(0..=51).contains(&crf) {
+                        println!(
+                            "CRF ({}) value out of range [0..51]. Defaulting to 23.",
+                            crf
+                        );
+                        23
+                    } else {
+                        crf
+                    }
+                }
+                None => 23,
+            };
+
+            let actual_inputs = ctx.input.single();
+            let args = ENCODE
+                .replace("INPUTS", &actual_inputs)
+                .replace("CRF", &crf.to_string())
+                .replace("OUTPUT", &ctx.output);
+            let args = args.split_whitespace().collect::<Vec<&str>>();
+            println!(
+                "Encoding {actual_inputs} with libx264 crf={crf} -> {0}",
+                ctx.output
+            );
+            println!("{}", run_ffmpeg(args)?);
         }
         Commands::Youtube => {
-            // we only expect ONE input.
             if ctx.input_size > 1 {
-                eprintln!("Too many inputs");
-            } else {
-                if ctx.input_type != InputType::File {
-                    bail!("Input is not a file.");
-                }
-
-                let actual_inputs = ctx.input.single();
-                let args = YOUTUBE
-                    .replace("INPUTS", &actual_inputs)
-                    .replace("OUTPUT", &ctx.output);
-                let args = args.split_whitespace().collect::<Vec<&str>>();
-                println!(
-                    "Encoding video for youtube {actual_inputs} -> {0}",
-                    ctx.output
-                );
-                println!("{}", run_ffmpeg(args)?);
+                bail!("Too many inputs");
             }
+
+            if ctx.input_type != InputType::File {
+                bail!("Input is not a file.");
+            }
+
+            let actual_inputs = ctx.input.single();
+            let args = YOUTUBE
+                .replace("INPUTS", &actual_inputs)
+                .replace("OUTPUT", &ctx.output);
+            let args = args.split_whitespace().collect::<Vec<&str>>();
+            println!(
+                "Encoding video for youtube {actual_inputs} -> {0}",
+                ctx.output
+            );
+            println!("{}", run_ffmpeg(args)?);
         }
     }
 
