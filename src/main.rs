@@ -39,7 +39,8 @@ use tempfile::tempdir_in;
 //     Scaling e.g. 1280x720 to 320x240
 //     Padding
 //     Fading (maybe good for Merge command)
-//     Drawing Text
+//     Drawing Text (top-left, top-right, center, bottom-left, bottom-right,
+//                   background, foreground)
 //     Timeline Editing, enable filters with specific START and END
 //     Speed up at specific sections in the video, slow and fast motions.
 //
