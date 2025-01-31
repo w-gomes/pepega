@@ -95,7 +95,7 @@ enum Commands {
 // ffmpeg args
 static CLIP: &str = "-y -ss START -i INPUTS -to END -c copy -copyts OUTPUT";
 
-static MERGE: &str = "-y -f concat -safe 0 -i INPUTS -c:v libx264 -pix-fmt yuv420p OUTPUT";
+static MERGE: &str = "-y -f concat -safe 0 -i INPUTS -c:v libx264 -pix_fmt yuv420p OUTPUT";
 
 static VIDEO: &str = "-y -f concat -safe 0 -i INPUTS -c:v libx264 -r 30 -pix_fmt yuv420p OUTPUT";
 
@@ -104,7 +104,7 @@ static AUDIO: &str = "-y -i INPUTS -vn -c:a mp3 OUTPUT";
 static ENCODE: &str =
     "-y -i INPUTS -c:v libx264 -crf CRF -c:a aac -b:a 384k -pix_fmt yuv420p OUTPUT";
 
-static YOUTUBE: &str = "-y -i INPUTS -c:v libx264 -crf 18 -preset ultrafast -c:a acc -b:a 384k -pix_fmt yuv420p OUTPUT";
+static YOUTUBE: &str = "-y -i INPUTS -c:v libx264 -crf 18 -preset ultrafast -c:a aac -b:a 384k -pix_fmt yuv420p OUTPUT";
 
 fn run_ffmpeg(args: Vec<&str>) -> Result<&'static str> {
     let msg = &args;
@@ -159,6 +159,7 @@ fn full_path(file: Option<String>) -> Result<String> {
     }
 }
 
+#[derive(Debug)]
 struct PepegaContext {
     input: Input,
     input_type: InputType,
@@ -172,10 +173,13 @@ impl PepegaContext {
 
         // handle the inputs
         let (input_type, input) = if input_size == 1 {
-            // single input
+            // single input can contain "." or directory
             let single_input = input[0].clone();
-            if single_input == "." {
+            if single_input.ends_with(".") {
                 let full_path = full_path(None)?;
+                (InputType::Directory, Input::Single(full_path))
+            } else if PathBuf::from(single_input.clone()).is_dir() {
+                let full_path = full_path(Some(single_input))?;
                 (InputType::Directory, Input::Single(full_path))
             } else {
                 let full_path = full_path(Some(single_input))?;
@@ -227,7 +231,7 @@ impl Input {
     }
 }
 
-#[derive(PartialEq)]
+#[derive(Debug, PartialEq)]
 enum InputType {
     Directory,
     File,
