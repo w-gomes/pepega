@@ -101,8 +101,17 @@ static VIDEO: &str = "-y -f concat -safe 0 -i INPUTS -c:v libx264 -r 30 -pix_fmt
 
 static AUDIO: &str = "-y -i INPUTS -vn -c:a mp3 OUTPUT";
 
-static ENCODE: &str =
-    "-y -i INPUTS -c:v libx264 -crf CRF -c:a aac -b:a 384k -pix_fmt yuv420p OUTPUT";
+// H264 encoder
+static ENCODE_H264: &str =
+    "-y -i INPUTS -c:v libx264 -crf CRF -c:a aac -b:a 192k -pix_fmt yuv420p OUTPUT";
+
+// av1_nvenc encoder, default to cq 20
+static ENCODE_AV1: &str =
+    "-y -i INPUTS -c:v av1_nvenc -preset fast -cq 20 -c:a aac -b:a 192k -pix_fmt yuv420p OUTPUT";
+
+// H265 encoder, defaults to cq 20
+static ENCODE_H265: &str =
+    "-y -i INPUTS -c:v hevc_nvenc -preset fast -cq 20 -c:a aac -b:a 192k -pix_fmt yuv420p OUTPUT";
 
 static YOUTUBE: &str = "-y -i INPUTS -c:v libx264 -crf 18 -preset ultrafast -c:a aac -b:a 384k -pix_fmt yuv420p OUTPUT";
 
@@ -432,7 +441,7 @@ fn main() -> Result<()> {
             };
 
             let actual_inputs = ctx.input.single();
-            let args = ENCODE
+            let args = ENCODE_H264
                 .replace("INPUTS", &actual_inputs)
                 .replace("CRF", &crf.to_string())
                 .replace("OUTPUT", &ctx.output);
