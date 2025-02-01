@@ -92,6 +92,12 @@ enum Commands {
     Youtube,
 }
 
+enum Encoders {
+    H264 { crf: Option<i16> },
+    H265,
+    AV1,
+}
+
 // ffmpeg args
 static CLIP: &str = "-y -ss START -i INPUTS -to END -c copy -copyts OUTPUT";
 
