@@ -108,6 +108,7 @@ enum Encoders {
     AV1,
 }
 
+// TODO: We might not need -pix_fmt anymore?
 // ffmpeg args
 static CLIP: &str = "-y -ss START -i INPUTS -to END -c copy -copyts OUTPUT";
 
@@ -117,32 +118,34 @@ static VIDEO: &str = "-y -f concat -safe 0 -i INPUTS -c:v libx264 -r 30 -pix_fmt
 
 static AUDIO: &str = "-y -i INPUTS -vn -c:a mp3 -b:a 192k OUTPUT";
 
+// TODO: these encoders are so cooked.
 // H264 encoder
 // we're already recording using acc encode and bitrate 160k so we just copy it
 static ENCODE_H264: &str =
-    "-y -i INPUTS -c:v libx264 -crf CRF -preset slow -c:a copy -pix_fmt yuv420p OUTPUT";
+    "-y -i INPUTS -c:v libx264 -crf CRF -preset ultrafast -c:a copy -pix_fmt yuv420p OUTPUT";
 
 // av1_nvenc encoder, defaults to cq 20
 // same as H264 for audio
 static ENCODE_AV1: &str =
-    "-y -i INPUTS -c:v av1_nvenc -preset slow -cq 20 -c:a copy -pix_fmt yuv420p OUTPUT";
+    "-y -i INPUTS -c:v av1_nvenc -preset ultrafast -cq 20 -c:a copy -pix_fmt yuv420p OUTPUT";
 
 // H265 encoder, defaults to cq 20
 // same as H264 for audio
 static ENCODE_H265: &str =
-    "-y -i INPUTS -c:v hevc_nvenc -preset slow -cq 20 -c:a copy -pix_fmt yuv420p OUTPUT";
+    "-y -i INPUTS -c:v hevc_nvenc -preset ultrafast -cq 20 -c:a copy -pix_fmt yuv420p OUTPUT";
 
 static YOUTUBE: &str =
-    "-y -i INPUTS -c:v libx264 -crf 18 -preset slow -c:a aac -b:a 384k -pix_fmt yuv420p OUTPUT";
+    "-y -i INPUTS -c:v libx264 -crf 18 -preset ultrafast -c:a aac -b:a 384k -pix_fmt yuv420p OUTPUT";
 
-static UPSCALE: &str = "-y -i INPUTS -vf scale=iw*2:ih*2:flags=neighbor -c:v libx264 -crf 18 -preset slow -c:a copy -pix_fmt yuv420p OUTPUT";
+static UPSCALE: &str =
+    "-y -i INPUTS -vf scale=iw*2:ih*2:flags=neighbor -c:v libx264 -crf 18 -preset ultrafast OUTPUT";
 
 fn run_ffmpeg(args: Vec<&str>) -> Result<&'static str> {
     let msg = &args;
     let msg = msg.join(" ");
     print!("Calling ffmpeg with args:\n( {msg} )\n\n");
 
-    let run_dummy = true;
+    let run_dummy = false;
     if run_dummy {
         println!("Calling ffmpeg with no args!");
         let ffmpeg = Command::new("ffmpeg")
@@ -508,6 +511,23 @@ fn main() -> Result<()> {
                 "Encoding video for youtube {actual_inputs} -> {0}",
                 ctx.output
             );
+            println!("{}", run_ffmpeg(args)?);
+        }
+        Commands::Upscale => {
+            if ctx.input_size > 1 {
+                bail!("Too many inputs");
+            }
+
+            if ctx.input_type != InputType::File {
+                bail!("Input is not a file.");
+            }
+
+            let actual_inputs = ctx.input.single();
+            let args = UPSCALE
+                .replace("INPUTS", &actual_inputs)
+                .replace("OUTPUT", &ctx.output);
+            let args = args.split_whitespace().collect::<Vec<&str>>();
+            println!("Upscaling video {actual_inputs} -> {0}", ctx.output);
             println!("{}", run_ffmpeg(args)?);
         }
     }
