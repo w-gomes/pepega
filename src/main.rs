@@ -7,7 +7,7 @@ use std::{
 };
 
 use anyhow::{bail, Context, Result};
-use clap::{Parser, Subcommand};
+use clap::{Parser, Subcommand, ValueEnum};
 use tempfile::tempdir_in;
 
 // - Future ideas
@@ -81,19 +81,29 @@ enum Commands {
     /// Extracts the audio stream from a video.
     Audio,
 
-    /// Encodes a video with default value of 23 for CRF.
-    /// This value can be changed with CRF option, BETWEEN 0 and 51.
+    /// Encodes a video with three differents encoders: h264, h265 and av1.
     Encode {
+        #[arg(value_enum)]
+        encoders: Encoders,
+
         #[arg(short, long, value_name = "CRF")]
+        /// This option's used for x264 encoder. Defaults to 23.
+        /// This value can be changed with CRF option, BETWEEN 0 and 51.
         crf: Option<i16>,
     },
 
     /// Encodes a video with options specifically for youtube.
     Youtube,
+
+    /// Upscale video for higher peak quality
+    /// https://trac.ffmpeg.org/wiki/Encode/YouTube#Upscalingvideoforhigherpeakquality
+    Upscale,
 }
 
+// TODO: Why do we need Clone here?
+#[derive(ValueEnum, Debug, Clone)]
 enum Encoders {
-    H264 { crf: Option<i16> },
+    H264,
     H265,
     AV1,
 }
@@ -105,28 +115,34 @@ static MERGE: &str = "-y -f concat -safe 0 -i INPUTS -c:v libx264 -pix_fmt yuv42
 
 static VIDEO: &str = "-y -f concat -safe 0 -i INPUTS -c:v libx264 -r 30 -pix_fmt yuv420p OUTPUT";
 
-static AUDIO: &str = "-y -i INPUTS -vn -c:a mp3 OUTPUT";
+static AUDIO: &str = "-y -i INPUTS -vn -c:a mp3 -b:a 192k OUTPUT";
 
 // H264 encoder
+// we're already recording using acc encode and bitrate 160k so we just copy it
 static ENCODE_H264: &str =
-    "-y -i INPUTS -c:v libx264 -crf CRF -c:a aac -b:a 192k -pix_fmt yuv420p OUTPUT";
+    "-y -i INPUTS -c:v libx264 -crf CRF -preset slow -c:a copy -pix_fmt yuv420p OUTPUT";
 
-// av1_nvenc encoder, default to cq 20
+// av1_nvenc encoder, defaults to cq 20
+// same as H264 for audio
 static ENCODE_AV1: &str =
-    "-y -i INPUTS -c:v av1_nvenc -preset fast -cq 20 -c:a aac -b:a 192k -pix_fmt yuv420p OUTPUT";
+    "-y -i INPUTS -c:v av1_nvenc -preset slow -cq 20 -c:a copy -pix_fmt yuv420p OUTPUT";
 
 // H265 encoder, defaults to cq 20
+// same as H264 for audio
 static ENCODE_H265: &str =
-    "-y -i INPUTS -c:v hevc_nvenc -preset fast -cq 20 -c:a aac -b:a 192k -pix_fmt yuv420p OUTPUT";
+    "-y -i INPUTS -c:v hevc_nvenc -preset slow -cq 20 -c:a copy -pix_fmt yuv420p OUTPUT";
 
-static YOUTUBE: &str = "-y -i INPUTS -c:v libx264 -crf 18 -preset ultrafast -c:a aac -b:a 384k -pix_fmt yuv420p OUTPUT";
+static YOUTUBE: &str =
+    "-y -i INPUTS -c:v libx264 -crf 18 -preset slow -c:a aac -b:a 384k -pix_fmt yuv420p OUTPUT";
+
+static UPSCALE: &str = "-y -i INPUTS -vf scale=iw*2:ih*2:flags=neighbor -c:v libx264 -crf 18 -preset slow -c:a copy -pix_fmt yuv420p OUTPUT";
 
 fn run_ffmpeg(args: Vec<&str>) -> Result<&'static str> {
     let msg = &args;
     let msg = msg.join(" ");
     print!("Calling ffmpeg with args:\n( {msg} )\n\n");
 
-    let run_dummy = false;
+    let run_dummy = true;
     if run_dummy {
         println!("Calling ffmpeg with no args!");
         let ffmpeg = Command::new("ffmpeg")
@@ -422,7 +438,7 @@ fn main() -> Result<()> {
             println!("Extracting audio of {actual_inputs} -> {0}", ctx.output);
             println!("{}", run_ffmpeg(args)?);
         }
-        Commands::Encode { crf } => {
+        Commands::Encode { encoders, crf } => {
             if ctx.input_size > 1 {
                 bail!("Too many inputs");
             }
@@ -447,15 +463,31 @@ fn main() -> Result<()> {
             };
 
             let actual_inputs = ctx.input.single();
-            let args = ENCODE_H264
-                .replace("INPUTS", &actual_inputs)
-                .replace("CRF", &crf.to_string())
-                .replace("OUTPUT", &ctx.output);
+
+            let args = match encoders {
+                Encoders::H264 => {
+                    println!("Encoding with libx264 crf={crf}");
+                    ENCODE_H264
+                        .replace("INPUTS", &actual_inputs)
+                        .replace("CRF", &crf.to_string())
+                        .replace("OUTPUT", &ctx.output)
+                }
+                Encoders::H265 => {
+                    println!("Encoding with libx265 defaults to cq=20");
+                    ENCODE_H265
+                        .replace("INPUTS", &actual_inputs)
+                        .replace("OUTPUT", &ctx.output)
+                }
+                Encoders::AV1 => {
+                    println!("Encoding with av1 defaults to cq=20");
+                    ENCODE_AV1
+                        .replace("INPUTS", &actual_inputs)
+                        .replace("OUTPUT", &ctx.output)
+                }
+            };
+
             let args = args.split_whitespace().collect::<Vec<&str>>();
-            println!(
-                "Encoding {actual_inputs} with libx264 crf={crf} -> {0}",
-                ctx.output
-            );
+            println!("Encoding {actual_inputs} -> {0}", ctx.output);
             println!("{}", run_ffmpeg(args)?);
         }
         Commands::Youtube => {
