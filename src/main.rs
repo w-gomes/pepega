@@ -177,6 +177,7 @@ fn run_ffmpeg(args: Vec<&str>) -> Result<&'static str> {
     Ok("\nSuccessfully ran ffmpeg!")
 }
 
+// TODO: handle file name with spaces
 fn full_path(file: Option<String>) -> Result<String> {
     let dir = current_dir()?;
     if let Some(file) = file {
