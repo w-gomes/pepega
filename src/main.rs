@@ -1,10 +1,4 @@
-use std::{
-    env::current_dir,
-    fs::File,
-    io::Write,
-    path::PathBuf,
-    process::{Command, Stdio},
-};
+use std::{env::current_dir, fs::File, io::Write, path::PathBuf};
 
 use anyhow::{bail, Context, Result};
 use clap::{Parser, Subcommand, ValueEnum};
@@ -45,37 +39,62 @@ use tempfile::tempdir_in;
 //     Speed up at specific sections in the video, slow and fast motions.
 //
 #[derive(Parser, Debug)]
-#[command(about = "Smol video and audio tool that uses ffmpeg.")]
-#[command(version, long_about = None)]
+#[command(
+    name = "pepega",
+    about = "Smol video and audio tool that uses ffmpeg.",
+    version
+)]
+#[command(
+    long_about = "pepega is a small program utility to simplify common video and audio tasks. From clipping and merging videos to extracting audio and encoding for various platforms. pepega leverages the power of FFmpeg"
+)]
 struct Pepega {
     /// Inputs files.
-    #[arg(short, required = true)]
-    inputs: Vec<String>,
+    /// These are the primary files the command will operate on.
+    #[arg(
+        short,
+        long,
+        required = true,
+        help = "One or more input video files. If extracting audio, it takes only ONE input."
+    )]
+    inputs: Vec<PathBuf>,
 
     /// Output file.
-    #[arg(short, required = true)]
-    output: String,
+    /// If not specified, the name of the command invoked will be appended
+    /// to the input file.
+    #[arg(short, long)]
+    output: Option<PathBuf>,
 
     /// Options for the program.
     #[command(subcommand)]
-    command: Commands,
+    command: Command,
 }
 
 #[derive(Subcommand, Debug)]
-enum Commands {
+enum Command {
     /// Creates a clip of a video with START and END positions.
-    /// All streams and timestamp are copied.
-    /// You might want to encode after this with encode command.
-    Clip { start: String, end: String },
+    /// All streams and timestamps are copied (no re-encoding).
+    /// You might want to encode after this with 'encode' command for smaller file sizes.
+    Clip {
+        /// Start time of the clip (e.g. "00:01:30" for 1 minute 30 seconds,
+        /// or "90" for 90 seconds).
+        #[arg(help = "Start time of the clip (HH:MM:SS) or seconds")]
+        start: chrono::Duration,
+
+        /// End time of the clip (e.g. "00:02:00" or "120"
+        #[arg(help = "End time of the clip (HH:MM:SS) or seconds")]
+        end: chrono::Duration,
+    },
 
     /// Merges two or more videos.
     Merge,
 
-    /// Creates a video from images with default of 5 seconds each.
-    /// This time can be changed with FRAMERATE option, BETWEEN 1 and 10.
+    /// Creates a video from images.
+    /// By default, each image will be displayed for 5 seconds.
     Video {
-        #[arg(short, long, value_name = "FRAMERATE")]
-        framerate: Option<i16>,
+        /// This duration can be changed with FRAMERATE option.
+        /// Must be between 1 and 10.
+        #[arg(short, long, value_name = "FRAMERATE", default_value_t = 5, value_parser = clap::value_parser!(i16).range(1..=10))]
+        framerate: i16,
     },
 
     /// Extracts the audio stream from a video.
@@ -83,26 +102,32 @@ enum Commands {
 
     /// Encodes a video with three differents encoders: h264, h265 and av1.
     Encode {
-        #[arg(value_enum)]
+        /// Choose the encoder to use.
+        #[arg(value_enum, help = "Select the video encoder (h264, h265, av1).")]
         encoders: Encoders,
 
-        #[arg(short, long, value_name = "CRF")]
+        /// Constant Rate Factor (CRF) for H.264 encoding.
+        /// A lower value means higher quality. Valid range: 0-51.
+        /// Defaults to 23. This option is only applicable for the H264 encoder.
+        #[arg(short, long, value_name = "CRF", default_value_t = 23, clap::value_parser!(i16).range(1..=51))]
         /// This option's used for x264 encoder. Defaults to 23.
         /// This value can be changed with CRF option, BETWEEN 0 and 51.
-        crf: Option<i16>,
+        crf: i16,
     },
 
-    /// Encodes a video with options specifically for youtube.
+    /// Encodes a video with options specifically for YouTube.
     Youtube,
 
-    /// Upscale video for higher peak quality
+    /// Upscale video for higher peak quality on platforms like YouTube.
+    /// Uses FFmpeg's recommended settings for upscalling.
     /// https://trac.ffmpeg.org/wiki/Encode/YouTube#Upscalingvideoforhigherpeakquality
     Upscale,
 }
 
 // TODO: Why do we need Clone here?
-#[derive(ValueEnum, Debug, Clone)]
+#[derive(ValueEnum, Debug, Clone, Default)]
 enum Encoders {
+    #[default]
     H264,
     H265,
     AV1,
@@ -141,6 +166,8 @@ static UPSCALE: &str =
     "-y -i INPUTS -vf scale=iw*2:ih*2:flags=neighbor -c:v libx264 -crf 18 -preset ultrafast OUTPUT";
 
 fn run_ffmpeg(args: Vec<&str>) -> Result<&'static str> {
+    use std::process::{Command, Stdio};
+
     let msg = &args;
     let msg = msg.join(" ");
     print!("Calling ffmpeg with args:\n( {msg} )\n\n");
@@ -278,7 +305,7 @@ fn main() -> Result<()> {
     let ctx = PepegaContext::new(args.inputs, args.output)?;
 
     match args.command {
-        Commands::Clip { start, end } => {
+        Command::Clip { start, end } => {
             if ctx.input_size > 1 {
                 bail!("Too many inputs");
             }
@@ -288,6 +315,7 @@ fn main() -> Result<()> {
             }
 
             let actual_inputs = ctx.input.single();
+
             let args = CLIP
                 .replace("START", &start)
                 .replace("INPUTS", &actual_inputs)
@@ -300,7 +328,7 @@ fn main() -> Result<()> {
             );
             println!("{}", run_ffmpeg(args)?);
         }
-        Commands::Merge => {
+        Command::Merge => {
             // TODO: Research concatenating streams with filters.
             // we expect more TWO or MORE inputs.
 
@@ -364,7 +392,7 @@ fn main() -> Result<()> {
             println!("{}", run_ffmpeg(args)?);
         }
 
-        Commands::Video { framerate } => {
+        Command::Video { framerate } => {
             if ctx.input_size > 1 {
                 bail!("Too many inputs");
             }
@@ -425,7 +453,7 @@ fn main() -> Result<()> {
             println!("Creating a video from {total_images} images in {inputs} with framerate 1/{framerate}");
             println!("{}", run_ffmpeg(args)?);
         }
-        Commands::Audio => {
+        Command::Audio => {
             if ctx.input_size > 1 {
                 bail!("Too many inputs");
             }
@@ -442,7 +470,7 @@ fn main() -> Result<()> {
             println!("Extracting audio of {actual_inputs} -> {0}", ctx.output);
             println!("{}", run_ffmpeg(args)?);
         }
-        Commands::Encode { encoders, crf } => {
+        Command::Encode { encoders, crf } => {
             if ctx.input_size > 1 {
                 bail!("Too many inputs");
             }
@@ -494,7 +522,7 @@ fn main() -> Result<()> {
             println!("Encoding {actual_inputs} -> {0}", ctx.output);
             println!("{}", run_ffmpeg(args)?);
         }
-        Commands::Youtube => {
+        Command::Youtube => {
             if ctx.input_size > 1 {
                 bail!("Too many inputs");
             }
@@ -514,7 +542,7 @@ fn main() -> Result<()> {
             );
             println!("{}", run_ffmpeg(args)?);
         }
-        Commands::Upscale => {
+        Command::Upscale => {
             if ctx.input_size > 1 {
                 bail!("Too many inputs");
             }
