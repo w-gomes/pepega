@@ -54,15 +54,13 @@ struct Pepega {
         short,
         long,
         required = true,
-        help = "One or more input video files. If extracting audio, it takes only ONE input."
+        help = "One or more input files. If extracting audio, it takes only ONE input."
     )]
-    inputs: Vec<PathBuf>,
+    inputs: Vec<String>,
 
     /// Output file.
-    /// If not specified, the name of the command invoked will be appended
-    /// to the input file.
     #[arg(short, long)]
-    output: Option<PathBuf>,
+    output: String,
 
     /// Options for the program.
     #[command(subcommand)]
@@ -72,17 +70,20 @@ struct Pepega {
 #[derive(Subcommand, Debug)]
 enum Command {
     /// Creates a clip of a video with START and END positions.
-    /// All streams and timestamps are copied (no re-encoding).
-    /// You might want to encode after this with 'encode' command for smaller file sizes.
+    /// All streams and timestamps are copied by default.
+    /// You can reencode with --encode flag.
     Clip {
-        /// Start time of the clip (e.g. "00:01:30" for 1 minute 30 seconds,
-        /// or "90" for 90 seconds).
-        #[arg(help = "Start time of the clip (HH:MM:SS) or seconds")]
-        start: chrono::Duration,
+        /// Start time of the clip (e.g. "00:01:30.000" for 1 minute 30 seconds.
+        #[arg(help = "Start time of the clip.")]
+        start: String,
 
-        /// End time of the clip (e.g. "00:02:00" or "120"
-        #[arg(help = "End time of the clip (HH:MM:SS) or seconds")]
-        end: chrono::Duration,
+        /// End time of the clip (e.g. "00:02:00.000")
+        #[arg(help = "End time of the clip.")]
+        end: String,
+
+        /// Reencode the clip.
+        #[arg(short, long, help = "Reencode the clip using h264 encoder.")]
+        encode: bool,
     },
 
     /// Merges two or more videos.
@@ -103,13 +104,13 @@ enum Command {
     /// Encodes a video with three differents encoders: h264, h265 and av1.
     Encode {
         /// Choose the encoder to use.
-        #[arg(value_enum, help = "Select the video encoder (h264, h265, av1).")]
+        #[arg(short, long, value_enum, help = "Select the video encoder (h264, h265, av1).", default_value_t = Encoders::H264)]
         encoders: Encoders,
 
         /// Constant Rate Factor (CRF) for H.264 encoding.
         /// A lower value means higher quality. Valid range: 0-51.
         /// Defaults to 23. This option is only applicable for the H264 encoder.
-        #[arg(short, long, value_name = "CRF", default_value_t = 23, clap::value_parser!(i16).range(1..=51))]
+        #[arg(short, long, value_name = "CRF", default_value_t = 23, value_parser = clap::value_parser!(i16).range(1..=51))]
         /// This option's used for x264 encoder. Defaults to 23.
         /// This value can be changed with CRF option, BETWEEN 0 and 51.
         crf: i16,
@@ -125,9 +126,8 @@ enum Command {
 }
 
 // TODO: Why do we need Clone here?
-#[derive(ValueEnum, Debug, Clone, Default)]
+#[derive(ValueEnum, Debug, Clone)]
 enum Encoders {
-    #[default]
     H264,
     H265,
     AV1,
@@ -136,6 +136,7 @@ enum Encoders {
 // TODO: We might not need -pix_fmt anymore?
 // ffmpeg args
 static CLIP: &str = "-y -ss START -i INPUTS -to END -c copy -copyts OUTPUT";
+static CLIP_REENCODE: &str = "-y -i INPUTS -ss START -to END -c:v libx264 -c:a aac OUTPUT";
 
 static MERGE: &str = "-y -f concat -safe 0 -i INPUTS -c:v libx264 -pix_fmt yuv420p OUTPUT";
 
@@ -172,7 +173,7 @@ fn run_ffmpeg(args: Vec<&str>) -> Result<&'static str> {
     let msg = msg.join(" ");
     print!("Calling ffmpeg with args:\n( {msg} )\n\n");
 
-    let run_dummy = false;
+    let run_dummy = true;
     if run_dummy {
         println!("Calling ffmpeg with no args!");
         let ffmpeg = Command::new("ffmpeg")
@@ -305,7 +306,7 @@ fn main() -> Result<()> {
     let ctx = PepegaContext::new(args.inputs, args.output)?;
 
     match args.command {
-        Command::Clip { start, end } => {
+        Command::Clip { start, end, encode } => {
             if ctx.input_size > 1 {
                 bail!("Too many inputs");
             }
@@ -316,11 +317,19 @@ fn main() -> Result<()> {
 
             let actual_inputs = ctx.input.single();
 
-            let args = CLIP
-                .replace("START", &start)
-                .replace("INPUTS", &actual_inputs)
-                .replace("END", &end)
-                .replace("OUTPUT", &ctx.output);
+            let args = if encode {
+                CLIP_REENCODE
+                    .replace("START", &start)
+                    .replace("INPUTS", &actual_inputs)
+                    .replace("END", &end)
+                    .replace("OUTPUT", &ctx.output)
+            } else {
+                CLIP.replace("START", &start)
+                    .replace("INPUTS", &actual_inputs)
+                    .replace("END", &end)
+                    .replace("OUTPUT", &ctx.output)
+            };
+
             let args = args.split_whitespace().collect::<Vec<&str>>();
             println!(
                 "Creating a clip of {actual_inputs} [{start}...{end}] -> {0}",
@@ -401,21 +410,6 @@ fn main() -> Result<()> {
                 bail!("input is not a directory.");
             }
 
-            let framerate = match framerate {
-                Some(framerate) => {
-                    if !(1..=10).contains(&framerate) {
-                        println!(
-                            "Framerate ({}) value out of range [1..10]. Defaulting to 5.",
-                            framerate
-                        );
-                        5
-                    } else {
-                        framerate
-                    }
-                }
-                None => 5,
-            };
-
             // Create temporary dir and file
             let tmp_dir = tempdir_in(".").expect("Failed to create a folder");
             let tmp_list = tmp_dir.path().join("tmp_list.txt");
@@ -478,21 +472,6 @@ fn main() -> Result<()> {
             if ctx.input_type != InputType::File {
                 bail!("Input is not a file.");
             }
-
-            let crf = match crf {
-                Some(crf) => {
-                    if !(0..=51).contains(&crf) {
-                        println!(
-                            "CRF ({}) value out of range [0..51]. Defaulting to 23.",
-                            crf
-                        );
-                        23
-                    } else {
-                        crf
-                    }
-                }
-                None => 23,
-            };
 
             let actual_inputs = ctx.input.single();
 
