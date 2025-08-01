@@ -101,36 +101,36 @@ enum Encoders {
 
 // TODO: We might not need -pix_fmt anymore?
 // ffmpeg args
-static CLIP: &str = "-y -ss START -i INPUTS -to END -c copy -copyts OUTPUT";
-static CLIP_REENCODE: &str = "-y -i INPUTS -ss START -to END -c:v libx264 -c:a aac OUTPUT";
+static CLIP: &str = "-ss START -i INPUTS -to END -c copy -copyts OUTPUT";
+static CLIP_REENCODE: &str = "-i INPUTS -ss START -to END -c:v libx264 -c:a aac OUTPUT";
 
-static MERGE: &str = "-y -f concat -safe 0 -i INPUTS -c:v libx264 -pix_fmt yuv420p OUTPUT";
+static MERGE: &str = "-f concat -safe 0 -i INPUTS -c:v libx264 -pix_fmt yuv420p OUTPUT";
 
-static VIDEO: &str = "-y -f concat -safe 0 -i INPUTS -c:v libx264 -r 30 -pix_fmt yuv420p OUTPUT";
+static VIDEO: &str = "-f concat -safe 0 -i INPUTS -c:v libx264 -r 30 -pix_fmt yuv420p OUTPUT";
 
-static AUDIO: &str = "-y -i INPUTS -vn -c:a mp3 -b:a 192k OUTPUT";
+static AUDIO: &str = "-i INPUTS -vn -c:a mp3 -b:a 192k OUTPUT";
 
 // TODO: these encoders are so cooked.
 // H264 encoder
 // we're already recording using acc encode and bitrate 160k so we just copy it
 static ENCODE_H264: &str =
-    "-y -i INPUTS -c:v libx264 -crf CRF -preset ultrafast -c:a copy -pix_fmt yuv420p OUTPUT";
+    "-i INPUTS -c:v libx264 -crf CRF -preset ultrafast -c:a copy -pix_fmt yuv420p OUTPUT";
 
 // av1_nvenc encoder, defaults to cq 20
 // same as H264 for audio
 static ENCODE_AV1: &str =
-    "-y -i INPUTS -c:v av1_nvenc -cq 20 -preset p1 -c:a copy -pix_fmt yuv420p OUTPUT";
+    "-i INPUTS -c:v av1_nvenc -cq 20 -preset p1 -c:a copy -pix_fmt yuv420p OUTPUT";
 
 // H265 encoder, defaults to cq 20
 // same as H264 for audio
 static ENCODE_H265: &str =
-    "-y -i INPUTS -c:v hevc_nvenc -cq 20 -preset p1 -c:a copy -pix_fmt yuv420p OUTPUT";
+    "-i INPUTS -c:v hevc_nvenc -cq 20 -preset p1 -c:a copy -pix_fmt yuv420p OUTPUT";
 
 static YOUTUBE: &str =
-    "-y -i INPUTS -c:v libx264 -crf 18 -preset ultrafast -c:a aac -b:a 384k -pix_fmt yuv420p OUTPUT";
+    "-i INPUTS -c:v libx264 -crf 18 -preset ultrafast -c:a aac -b:a 384k -pix_fmt yuv420p OUTPUT";
 
 static UPSCALE: &str =
-    "-y -i INPUTS -vf scale=iw*2:ih*2:flags=neighbor -c:v libx264 -crf 18 -preset ultrafast OUTPUT";
+    "-i INPUTS -vf scale=iw*2:ih*2:flags=neighbor -c:v libx264 -crf 18 -preset ultrafast OUTPUT";
 
 fn run_ffmpeg(args: Vec<&str>) -> Result<&'static str> {
     use std::process::{Command, Stdio};
@@ -259,11 +259,11 @@ enum InputType {
 }
 
 fn main() -> Result<()> {
-    let args = Pepega::parse();
+    let program = Pepega::parse();
 
-    let ctx = PepegaContext::new(args.inputs, args.output)?;
+    let ctx = PepegaContext::new(program.inputs, program.output)?;
 
-    match args.command {
+    match program.command {
         Command::Clip { start, end, encode } => {
             if ctx.input_size > 1 {
                 bail!("Too many inputs");
