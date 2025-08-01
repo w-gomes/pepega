@@ -22,11 +22,11 @@ struct Pepega {
         required = true,
         help = "One or more input files. If extracting audio, it takes only ONE input."
     )]
-    inputs: Vec<String>,
+    inputs: Vec<PathBuf>,
 
     /// Output file.
     #[arg(short, long)]
-    output: String,
+    output: PathBuf,
 
     /// Options for the program.
     #[command(subcommand)]
@@ -119,12 +119,12 @@ static ENCODE_H264: &str =
 // av1_nvenc encoder, defaults to cq 20
 // same as H264 for audio
 static ENCODE_AV1: &str =
-    "-y -i INPUTS -c:v av1_nvenc -preset ultrafast -cq 20 -c:a copy -pix_fmt yuv420p OUTPUT";
+    "-y -i INPUTS -c:v av1_nvenc -cq 20 -preset p1 -c:a copy -pix_fmt yuv420p OUTPUT";
 
 // H265 encoder, defaults to cq 20
 // same as H264 for audio
 static ENCODE_H265: &str =
-    "-y -i INPUTS -c:v hevc_nvenc -preset ultrafast -cq 20 -c:a copy -pix_fmt yuv420p OUTPUT";
+    "-y -i INPUTS -c:v hevc_nvenc -cq 20 -preset p1 -c:a copy -pix_fmt yuv420p OUTPUT";
 
 static YOUTUBE: &str =
     "-y -i INPUTS -c:v libx264 -crf 18 -preset ultrafast -c:a aac -b:a 384k -pix_fmt yuv420p OUTPUT";
@@ -139,7 +139,7 @@ fn run_ffmpeg(args: Vec<&str>) -> Result<&'static str> {
     let msg = msg.join(" ");
     print!("Calling ffmpeg with args:\n( {msg} )\n\n");
 
-    let run_dummy = true;
+    let run_dummy = false;
     if run_dummy {
         println!("Calling ffmpeg with no args!");
         let ffmpeg = Command::new("ffmpeg")
@@ -171,21 +171,10 @@ fn run_ffmpeg(args: Vec<&str>) -> Result<&'static str> {
     Ok("\nSuccessfully ran ffmpeg!")
 }
 
-// TODO: handle file name with spaces
-fn full_path(file: Option<String>) -> Result<String> {
-    let dir = current_dir()?;
-    if let Some(file) = file {
-        Ok(dir
-            .join(file)
-            .to_str()
-            .context("Failed to convert to &str.")?
-            .to_string())
-    } else {
-        Ok(dir
-            .to_str()
-            .context("Failed to convert to &str.")?
-            .to_string())
-    }
+fn full_path(path: PathBuf) -> Result<PathBuf> {
+    let mut absolute_path = current_dir().unwrap();
+    absolute_path.push(path);
+    Ok(absolute_path)
 }
 
 #[derive(Debug)]
@@ -197,37 +186,40 @@ struct PepegaContext {
 }
 
 impl PepegaContext {
-    fn new(input: Vec<String>, output: String) -> Result<Self> {
+    fn new(mut input: Vec<PathBuf>, output: PathBuf) -> Result<Self> {
         let input_size = input.len();
 
-        // handle the inputs
         let (input_type, input) = if input_size == 1 {
-            // single input can contain "." or directory
-            let single_input = input[0].clone();
-            if single_input.ends_with(".") {
-                let full_path = full_path(None)?;
-                (InputType::Directory, Input::Single(full_path))
-            } else if PathBuf::from(single_input.clone()).is_dir() {
-                let full_path = full_path(Some(single_input))?;
-                (InputType::Directory, Input::Single(full_path))
+            let single_input = input.pop().unwrap();
+            let path = if single_input.is_absolute() {
+                single_input
             } else {
-                let full_path = full_path(Some(single_input))?;
-                (InputType::File, Input::Single(full_path))
+                full_path(single_input)?
+            };
+
+            if path.is_dir() {
+                (
+                    InputType::Directory,
+                    Input::Single(path.display().to_string()),
+                )
+            } else {
+                println!("path: {}", path.display());
+                (InputType::File, Input::Single(path.display().to_string()))
             }
         } else {
-            // multiple inputs
-            let mut inputs = Vec::new();
-            for i in &input {
-                match full_path(Some(i.to_string())) {
-                    Ok(value) => inputs.push(value),
-                    Err(err) => bail!("Error getting the full path: {}", err),
-                }
-            }
+            let inputs = input
+                .into_iter()
+                .map(|i| {
+                    let absolute_path = full_path(i).unwrap();
+                    absolute_path.display().to_string()
+                })
+                .collect::<Vec<String>>();
             (InputType::File, Input::Multiple(inputs))
         };
 
-        // currently we only suport single output.
-        let output = full_path(Some(output))?;
+        // TODO: Make sure this is a file and not a dir.
+        let output = PathBuf::from(output);
+        let output = full_path(output)?.display().to_string();
 
         Ok(Self {
             input,

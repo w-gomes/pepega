@@ -1,34 +1,36 @@
-// - Future ideas
-// Commands:
-// * Clip
-//   At the moment we are copying video and audio streams as well as timestamp.
-//   Add an option to each stream or both. E.g. --reencode
-//
-// * Merge
-//   At the moment we are multiple videos from the command line using -i flags.
-//   It can be a bit tedious if we have a lot of videos.
-//   Implement passing the directory and just merge everything in there that
-//   has .mp4 or .mkv extensions.
-//
-// * Video
-//   Mostly complete. We should also check for images with different extensions.
-//   Currently, for Video command we only support directory as inputs.
-//   The video is created from all the images with .png extension inside the dir.
-//   Do we want to support specified files like the Merge command?
-//
-// * Audio
-//   At the moment we are extracting audio from the entire video file.
-//   We could add the clip functionality and just extract a portion of the video,
-//   with a given START and END.
-//
-// * Filters
-//   What kinda of filters do we want though?
-//   - Options
-//     Scaling e.g. 1280x720 to 320x240
-//     Padding
-//     Fading (maybe good for Merge command)
-//     Drawing Text (top-left, top-right, center, bottom-left, bottom-right,
-//                   background, foreground)
-//     Timeline Editing, enable filters with specific START and END
-//     Speed up at specific sections in the video, slow and fast motions.
-//
+- Future ideas
+Commands:
+* Clip
+  At the moment we are copying video and audio streams as well as timestamp.
+  Add an option to each stream or both. E.g. --reencode
+
+* Merge
+  At the moment we are multiple videos from the command line using -i flags.
+  It can be a bit tedious if we have a lot of videos.
+  Implement passing the directory and just merge everything in there that
+  has .mp4 or .mkv extensions.
+
+* Video
+  Mostly complete. We should also check for images with different extensions.
+  Currently, for Video command we only support directory as inputs.
+  The video is created from all the images with .png extension inside the dir.
+  Do we want to support specified files like the Merge command?
+
+* Audio
+  At the moment we are extracting audio from the entire video file.
+  We could add the clip functionality and just extract a portion of the video,
+  with a given START and END.
+
+* Encode
+  Add option to rotate video clockwise or conterclockwise.
+
+* Filters
+  What kinda of filters do we want though?
+  - Options
+    Scaling e.g. 1280x720 to 320x240
+    Padding
+    Fading (maybe good for Merge command)
+    Drawing Text (top-left, top-right, center, bottom-left, bottom-right,
+                  background, foreground)
+    Timeline Editing, enable filters with specific START and END
+    Speed up at specific sections in the video, slow and fast motions.
