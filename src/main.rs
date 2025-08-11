@@ -35,7 +35,7 @@ struct Pepega {
 
 #[derive(Subcommand, Debug)]
 enum Command {
-    /// Creates a clip of a video with START and END positions.
+    /// Creates a clip of a video with START and END times.
     /// All streams and timestamps are copied by default.
     /// You can reencode with --encode flag.
     Clip {
@@ -67,13 +67,13 @@ enum Command {
     /// Extracts the audio stream from a video.
     Audio,
 
-    /// Encodes a video with three differents encoders: h264, h265 and av1.
+    /// Encodes a video with three differents encoders: H264, H265 and AV1.
     Encode {
-        /// Choose the encoder to use.
-        #[arg(short, long, value_enum, help = "Select the video encoder (h264, h265, av1).", default_value_t = Encoders::H264)]
+        /// Choose the encoder.
+        #[arg(short, long, value_enum, help = "Select the video encoder (H264, H265, AV1).", default_value_t = Encoders::H264)]
         encoders: Encoders,
 
-        /// Constant Rate Factor (CRF) for H.264 encoding.
+        /// Constant Rate Factor (CRF) for the H.264 encoder.
         /// A lower value means higher quality. Valid range: 0-51.
         /// Defaults to 23. This option is only applicable for the H264 encoder.
         #[arg(short, long, value_name = "CRF", default_value_t = 23, value_parser = clap::value_parser!(i16).range(1..=51))]
@@ -85,10 +85,13 @@ enum Command {
     /// Encodes a video with options specifically for YouTube.
     Youtube,
 
-    /// Upscale video for higher peak quality on platforms like YouTube.
+    /// Upscales a video for higher peak quality on platforms like YouTube.
     /// Uses FFmpeg's recommended settings for upscalling.
     /// https://trac.ffmpeg.org/wiki/Encode/YouTube#Upscalingvideoforhigherpeakquality
     Upscale,
+
+    /// Flips a video clockwise.
+    Flip,
 }
 
 // TODO: Why do we need Clone here?
@@ -131,6 +134,8 @@ static YOUTUBE: &str =
 
 static UPSCALE: &str =
     "-i INPUTS -vf scale=iw*2:ih*2:flags=neighbor -c:v libx264 -crf 18 -preset ultrafast OUTPUT";
+
+static FLIP: &str = "-display_rotation:v:0 -90.0 -i INPUTS -c copy OUTPUT";
 
 fn run_ffmpeg(args: Vec<&str>) -> Result<&'static str> {
     use std::process::{Command, Stdio};
@@ -494,6 +499,25 @@ fn main() -> Result<()> {
                 .replace("OUTPUT", &ctx.output);
             let args = args.split_whitespace().collect::<Vec<&str>>();
             println!("Upscaling video {actual_inputs} -> {0}", ctx.output);
+            println!("{}", run_ffmpeg(args)?);
+        }
+        Command::Flip => {
+            if ctx.input_size > 1 {
+                bail!("Too many inputs");
+            }
+            if ctx.input_type != InputType::File {
+                bail!("Input is not a file.");
+            }
+
+            let actual_inputs = ctx.input.single();
+            let args = FLIP
+                .replace("INPUTS", &actual_inputs)
+                .replace("OUTPUT", &ctx.output);
+            let args = args.split_whitespace().collect::<Vec<&str>>();
+            println!(
+                "Flipping the video clockwise {actual_inputs} -> {0}",
+                ctx.output
+            );
             println!("{}", run_ffmpeg(args)?);
         }
     }
