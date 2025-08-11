@@ -107,7 +107,7 @@ enum Encoders {
 static CLIP: &str = "-ss START -i INPUTS -to END -c copy -copyts OUTPUT";
 static CLIP_REENCODE: &str = "-i INPUTS -ss START -to END -c:v libx264 -c:a aac OUTPUT";
 
-static MERGE: &str = "-f concat -safe 0 -i INPUTS -c:v libx264 -pix_fmt yuv420p OUTPUT";
+static MERGE: &str = "INPUTS -filter_complex FILTERS -map [v] -map [a] -c:v libx264 -pix_fmt yuv420p -c:a aac OUTPUT";
 
 static VIDEO: &str = "-f concat -safe 0 -i INPUTS -c:v libx264 -r 30 -pix_fmt yuv420p OUTPUT";
 
@@ -301,16 +301,9 @@ fn main() -> Result<()> {
             println!("{}", run_ffmpeg(args)?);
         }
         Command::Merge => {
-            // TODO: Research concatenating streams with filters.
-            // we expect more TWO or MORE inputs.
-
-            // Create temporary dir and file
-            let tmp_dir = tempdir_in(".").expect("Failed to create a folder");
-            let tmp_list = tmp_dir.path().join("tmp_list.txt");
-            let mut tmp_list_file =
-                File::create(&tmp_list).expect("Failed to create an tmp list file");
-
-            let mut total_videos = 0;
+            let mut filters = String::new();
+            let mut inputs = Vec::new();
+            let total_videos;
 
             // Check the input type and write the entries to the tmp file.
             match ctx.input_type {
@@ -321,20 +314,25 @@ fn main() -> Result<()> {
                         bail!("Not enough inputs");
                     }
 
-                    let actual_inputs = ctx.input.multiple();
-                    for entry in actual_inputs {
-                        writeln!(tmp_list_file, "file '{}'", entry)
-                            .expect("Failed to write to tmp_list_file");
-                        total_videos += 1;
+                    inputs = ctx.input.multiple();
+                    let total_inputs = inputs.len();
+
+                    for i in 0..total_inputs {
+                        filters.push_str(format!("[{0}:v:0][{0}:a:0]", i).as_str());
                     }
+                    filters.push_str(format!("concat=n={}:v=1:a=1[v][a]", total_inputs).as_str());
+
+                    total_videos = total_inputs;
                 }
                 // It's a single directory, we iterator over that and read
                 // each entry checking if they end with mp4 or mkv and write their
                 // absolute path to a file
                 InputType::Directory => {
+                    let ctx_inputs = ctx.input.single();
+
                     // We use PathBuf to iterate the directory.
-                    let actual_inputs = ctx.input.single();
-                    let input_path = PathBuf::from(actual_inputs);
+                    let input_path = PathBuf::from(ctx_inputs);
+
                     for entry in input_path
                         .read_dir()
                         .expect("Failed to read entries in directory.")
@@ -344,23 +342,33 @@ fn main() -> Result<()> {
                         let entry_path_str =
                             entry_path.to_str().context("Failed to convert to &str.")?;
                         if entry_path_str.ends_with("mkv") || entry_path_str.ends_with("mp4") {
-                            writeln!(tmp_list_file, "file '{}'", entry_path_str)
-                                .expect("Failed to write to tmp_img_list_file");
-                            total_videos += 1;
+                            inputs.push(entry_path_str.to_string());
                         }
                     }
+
+                    let total_inputs = inputs.len();
+
+                    for i in 0..total_inputs {
+                        filters.push_str(format!("[{0}:v:0][{0}:a:0]", i).as_str());
+                    }
+                    filters.push_str(format!("concat=n={}:v=1:a=1[v][a]", total_inputs).as_str());
+                    total_videos = total_inputs;
                 }
             }
 
-            let inputs = tmp_list
-                .to_str()
-                .context("Failed to convert to &str.")?
-                .to_string();
+            let mut inputs = inputs.join(" -i ");
+
+            // TODO: so bad
+            inputs.insert(0, ' ');
+            inputs.insert(0, 'i');
+            inputs.insert(0, '-');
+
             let args = MERGE
                 .replace("INPUTS", &inputs)
+                .replace("FILTERS", &filters)
                 .replace("OUTPUT", &ctx.output);
             let args = args.split_whitespace().collect::<Vec<&str>>();
-            println!("Merging {total_videos} videos in {inputs}");
+            println!("Merging {total_videos} videos.");
             println!("{}", run_ffmpeg(args)?);
         }
 
