@@ -140,7 +140,7 @@ static FLIP: &str = "-display_rotation:v:0 -90.0 -i INPUTS -c copy OUTPUT";
 fn run_ffmpeg(args: Vec<&str>) -> Result<&'static str> {
     use std::process::{Command, Stdio};
 
-    let run_dummy = true;
+    let run_dummy = false;
     if run_dummy {
         println!("\nRunning dummy!");
         let ffmpeg = Command::new("ffmpeg")
