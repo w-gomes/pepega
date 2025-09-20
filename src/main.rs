@@ -1,4 +1,4 @@
-use std::{env::current_dir, fs::File, io::Write, path::PathBuf};
+use std::{fs::File, io::Write, path::PathBuf};
 
 use anyhow::{bail, Context, Result};
 use clap::{Parser, Subcommand, ValueEnum};
@@ -20,13 +20,13 @@ struct Pepega {
         short,
         long,
         required = true,
-        help = "One or more input files. If extracting audio, it takes only ONE input."
+        help = "One or more input files. It doesn't support relative path."
     )]
     inputs: Vec<PathBuf>,
 
     /// Output file.
     #[arg(short, long)]
-    output: PathBuf,
+    output: Option<PathBuf>,
 
     /// Options for the program.
     #[command(subcommand)]
@@ -140,13 +140,9 @@ static FLIP: &str = "-display_rotation:v:0 -90.0 -i INPUTS -c copy OUTPUT";
 fn run_ffmpeg(args: Vec<&str>) -> Result<&'static str> {
     use std::process::{Command, Stdio};
 
-    let msg = &args;
-    let msg = msg.join(" ");
-    print!("Calling ffmpeg with args:\n( {msg} )\n\n");
-
-    let run_dummy = false;
+    let run_dummy = true;
     if run_dummy {
-        println!("Calling ffmpeg with no args!");
+        println!("\nRunning dummy!");
         let ffmpeg = Command::new("ffmpeg")
             .arg("-version")
             .stdout(Stdio::piped())
@@ -160,6 +156,9 @@ fn run_ffmpeg(args: Vec<&str>) -> Result<&'static str> {
             );
         }
     } else {
+        let msg = &args;
+        let msg = msg.join(" ");
+        print!("\nCalling ffmpeg with args:\n( {msg} )\n\n");
         let ffmpeg = Command::new("ffmpeg")
             .args(args)
             .stdout(Stdio::piped())
@@ -176,91 +175,74 @@ fn run_ffmpeg(args: Vec<&str>) -> Result<&'static str> {
     Ok("\nSuccessfully ran ffmpeg!")
 }
 
-fn full_path(path: PathBuf) -> Result<PathBuf> {
-    let mut absolute_path = current_dir().unwrap();
-    absolute_path.push(path);
-    Ok(absolute_path)
-}
-
-#[derive(Debug)]
-struct PepegaContext {
-    input: Input,
-    input_type: InputType,
-    input_size: usize,
-    output: String,
-}
-
-impl PepegaContext {
-    fn new(mut input: Vec<PathBuf>, output: PathBuf) -> Result<Self> {
-        let input_size = input.len();
-
-        let (input_type, input) = if input_size == 1 {
-            let single_input = input.pop().unwrap();
-            let path = if single_input.is_absolute() {
-                single_input
-            } else {
-                full_path(single_input)?
-            };
-
-            if path.is_dir() {
-                (
-                    InputType::Directory,
-                    Input::Single(path.display().to_string()),
-                )
-            } else {
-                println!("path: {}", path.display());
-                (InputType::File, Input::Single(path.display().to_string()))
-            }
-        } else {
-            let inputs = input
-                .into_iter()
-                .map(|i| {
-                    let absolute_path = full_path(i).unwrap();
-                    absolute_path.display().to_string()
-                })
-                .collect::<Vec<String>>();
-            (InputType::File, Input::Multiple(inputs))
-        };
-
-        // TODO: Make sure this is a file and not a dir.
-        let output = PathBuf::from(output);
-        let output = full_path(output)?.display().to_string();
-
-        Ok(Self {
-            input,
-            input_type,
-            input_size,
-            output,
-        })
-    }
-}
-
-#[derive(Debug)]
-enum Input {
-    Single(String),
-    Multiple(Vec<String>),
-}
-
-impl Input {
-    fn single(self) -> String {
-        match self {
-            Input::Single(value) => value,
-            _ => panic!("Tried to take Multiple from Single."),
-        }
-    }
-
-    fn multiple(self) -> Vec<String> {
-        match self {
-            Input::Multiple(values) => values,
-            _ => panic!("Tried to take Single from Multiple."),
-        }
-    }
-}
-
 #[derive(Debug, PartialEq)]
 enum InputType {
     Directory,
     File,
+}
+
+#[derive(Debug)]
+struct PepegaContext {
+    inputs: Vec<String>,
+    inputs_type: InputType,
+    output: String,
+    output_has_extension: bool,
+    is_relative: bool,
+}
+
+impl PepegaContext {
+    fn new(inputs: Vec<PathBuf>, output: Option<PathBuf>) -> Result<Self> {
+        // Determine InputType.
+        // We assume all remaining inputs are the same.
+        let inputs_type = if inputs[0].is_dir() { InputType::Directory } else { InputType::File };
+        let output_has_extension;
+
+        let is_input_rel = inputs[0].is_relative();
+        let is_output_rel;
+
+        // Check if output, else make one from inputs' parent path.
+        let output = match output {
+            Some(out) => {
+                is_output_rel = out.is_relative();
+                output_has_extension = true;
+                out.display().to_string()
+            }
+            None => {
+                // TODO: unwrap()
+                output_has_extension = false;
+                is_output_rel = is_input_rel;
+                let out = inputs[0].parent().unwrap().display().to_string();
+                out + "/output_tmp_name"
+            },
+        };
+
+        // Check if both output and inputs are relative.
+        // TODO: If more inputs, check if they are all absolute path.
+        //       Here, we are assumming all remaning inputs are the same as
+        //       the first one.
+        let is_relative = is_input_rel && is_output_rel;
+
+        // Convert the inputs to String from PathBuf.
+        let inputs = inputs.iter().map(|path| {
+            path.display().to_string()
+        }).collect::<Vec<String>>();
+
+        Ok(Self {
+            inputs,
+            inputs_type,
+            output,
+            output_has_extension,
+            is_relative,
+        })
+    }
+
+    fn output(&self, ext: &str) -> Option<String> {
+        if !self.output_has_extension {
+            Some(self.output.clone() + "." + ext)
+        } else {
+            None
+        }
+    }
 }
 
 fn main() -> Result<()> {
@@ -268,53 +250,59 @@ fn main() -> Result<()> {
 
     let ctx = PepegaContext::new(program.inputs, program.output)?;
 
+    if ctx.is_relative {
+        bail!("No support for relative path.");
+    }
+
     match program.command {
         Command::Clip { start, end, encode } => {
-            if ctx.input_size > 1 {
-                bail!("Too many inputs");
+            if ctx.inputs.len() > 1 {
+                println!("{}", "Warning: Inputs length is greater than 1. Discarding...");
             }
 
-            if ctx.input_type != InputType::File {
+            if ctx.inputs_type != InputType::File {
                 bail!("Input is not a file.");
             }
 
-            let actual_inputs = ctx.input.single();
+            let actual_output = if let Some(out) = ctx.output("mp4") { out } else {
+                ctx.output
+            };
+
+            let actual_inputs = &ctx.inputs[0];
 
             let args = if encode {
                 CLIP_REENCODE
                     .replace("START", &start)
                     .replace("INPUTS", &actual_inputs)
                     .replace("END", &end)
-                    .replace("OUTPUT", &ctx.output)
+                    .replace("OUTPUT", &actual_output)
             } else {
                 CLIP.replace("START", &start)
                     .replace("INPUTS", &actual_inputs)
                     .replace("END", &end)
-                    .replace("OUTPUT", &ctx.output)
+                    .replace("OUTPUT", &actual_output)
             };
 
             let args = args.split_whitespace().collect::<Vec<&str>>();
             println!(
-                "Creating a clip of {actual_inputs} [{start}...{end}] -> {0}",
-                ctx.output
+                "Creating a clip of {actual_inputs} [{start}...{end}] -> {actual_output}"
             );
             println!("{}", run_ffmpeg(args)?);
         }
         Command::Merge => {
             let mut filters = String::new();
-            let mut inputs = Vec::new();
+            let mut inputs = ctx.inputs.clone();
             let total_videos;
 
             // Check the input type and write the entries to the tmp file.
-            match ctx.input_type {
+            match ctx.inputs_type {
                 // It's multiple files, we iterate over them and write their
                 // absolute path to a file.
                 InputType::File => {
-                    if ctx.input_size < 2 {
+                    if ctx.inputs.len() < 2 {
                         bail!("Not enough inputs");
                     }
 
-                    inputs = ctx.input.multiple();
                     let total_inputs = inputs.len();
 
                     for i in 0..total_inputs {
@@ -328,10 +316,8 @@ fn main() -> Result<()> {
                 // each entry checking if they end with mp4 or mkv and write their
                 // absolute path to a file
                 InputType::Directory => {
-                    let ctx_inputs = ctx.input.single();
-
                     // We use PathBuf to iterate the directory.
-                    let input_path = PathBuf::from(ctx_inputs);
+                    let input_path = PathBuf::from(inputs[0].clone());
 
                     for entry in input_path
                         .read_dir()
@@ -356,6 +342,10 @@ fn main() -> Result<()> {
                 }
             }
 
+            let actual_output = if let Some(out) = ctx.output("mp4") { out } else {
+                ctx.output
+            };
+
             let mut inputs = inputs.join(" -i ");
 
             // TODO: so bad
@@ -366,18 +356,18 @@ fn main() -> Result<()> {
             let args = MERGE
                 .replace("INPUTS", &inputs)
                 .replace("FILTERS", &filters)
-                .replace("OUTPUT", &ctx.output);
+                .replace("OUTPUT", &actual_output);
             let args = args.split_whitespace().collect::<Vec<&str>>();
             println!("Merging {total_videos} videos.");
             println!("{}", run_ffmpeg(args)?);
         }
 
         Command::Video { framerate } => {
-            if ctx.input_size > 1 {
-                bail!("Too many inputs");
+            if ctx.inputs.len() > 1 {
+                println!("{}", "Warning: Inputs length is greater than 1. Discarding...");
             }
 
-            if ctx.input_type != InputType::Directory {
+            if ctx.inputs_type != InputType::Directory {
                 bail!("input is not a directory.");
             }
 
@@ -389,7 +379,8 @@ fn main() -> Result<()> {
 
             let mut total_images = 0;
 
-            let actual_inputs = ctx.input.single();
+            let actual_inputs = &ctx.inputs[0];
+
             let input_path = PathBuf::from(actual_inputs);
             for entry in input_path
                 .read_dir()
@@ -407,44 +398,56 @@ fn main() -> Result<()> {
                 }
             }
 
+            let actual_output = if let Some(out) = ctx.output("mp4") { out } else {
+                ctx.output
+            };
+
             let inputs = tmp_list
                 .to_str()
                 .context("Failed to convert to &str.")?
                 .to_string();
             let args = VIDEO
                 .replace("INPUTS", &inputs)
-                .replace("OUTPUT", &ctx.output);
+                .replace("OUTPUT", &actual_output);
             let args = args.split_whitespace().collect::<Vec<&str>>();
             println!("Creating a video from {total_images} images in {inputs} with framerate 1/{framerate}");
             println!("{}", run_ffmpeg(args)?);
         }
         Command::Audio => {
-            if ctx.input_size > 1 {
-                bail!("Too many inputs");
+            if ctx.inputs.len() > 1 {
+                println!("{}", "Warning: Inputs length is greater than 1. Discarding...");
             }
 
-            if ctx.input_type != InputType::File {
+            if ctx.inputs_type != InputType::File {
                 bail!("Input is not a file.");
             }
 
-            let actual_inputs = ctx.input.single();
+            let actual_output = if let Some(out) = ctx.output("mp3") { out } else {
+                ctx.output
+            };
+
+            let actual_inputs = &ctx.inputs[0];
             let args = AUDIO
                 .replace("INPUTS", &actual_inputs)
-                .replace("OUTPUT", &ctx.output);
+                .replace("OUTPUT", &actual_output);
             let args = args.split_whitespace().collect::<Vec<&str>>();
-            println!("Extracting audio of {actual_inputs} -> {0}", ctx.output);
+            println!("Extracting audio of {actual_inputs} -> {actual_output}");
             println!("{}", run_ffmpeg(args)?);
         }
         Command::Encode { encoders, crf } => {
-            if ctx.input_size > 1 {
-                bail!("Too many inputs");
+            if ctx.inputs.len() > 1 {
+                println!("{}", "Warning: Inputs length is greater than 1. Discarding...");
             }
 
-            if ctx.input_type != InputType::File {
+            if ctx.inputs_type != InputType::File {
                 bail!("Input is not a file.");
             }
 
-            let actual_inputs = ctx.input.single();
+            let actual_output = if let Some(out) = ctx.output("mp4") { out } else {
+                ctx.output
+            };
+
+            let actual_inputs = &ctx.inputs[0];
 
             let args = match encoders {
                 Encoders::H264 => {
@@ -452,79 +455,90 @@ fn main() -> Result<()> {
                     ENCODE_H264
                         .replace("INPUTS", &actual_inputs)
                         .replace("CRF", &crf.to_string())
-                        .replace("OUTPUT", &ctx.output)
+                        .replace("OUTPUT", &actual_output)
                 }
                 Encoders::H265 => {
                     println!("Encoding with libx265 defaults to cq=20");
                     ENCODE_H265
                         .replace("INPUTS", &actual_inputs)
-                        .replace("OUTPUT", &ctx.output)
+                        .replace("OUTPUT", &actual_output)
                 }
                 Encoders::AV1 => {
                     println!("Encoding with av1 defaults to cq=20");
                     ENCODE_AV1
                         .replace("INPUTS", &actual_inputs)
-                        .replace("OUTPUT", &ctx.output)
+                        .replace("OUTPUT", &actual_output)
                 }
             };
 
             let args = args.split_whitespace().collect::<Vec<&str>>();
-            println!("Encoding {actual_inputs} -> {0}", ctx.output);
+            println!("Encoding {actual_inputs} -> {actual_output}");
             println!("{}", run_ffmpeg(args)?);
         }
         Command::Youtube => {
-            if ctx.input_size > 1 {
-                bail!("Too many inputs");
+            if ctx.inputs.len() > 1 {
+                println!("{}", "Warning: Inputs length is greater than 1. Discarding...");
             }
 
-            if ctx.input_type != InputType::File {
+            if ctx.inputs_type != InputType::File {
                 bail!("Input is not a file.");
             }
 
-            let actual_inputs = ctx.input.single();
+            let actual_output = if let Some(out) = ctx.output("mp4") { out } else {
+                ctx.output
+            };
+
+            let actual_inputs = &ctx.inputs[0];
             let args = YOUTUBE
                 .replace("INPUTS", &actual_inputs)
-                .replace("OUTPUT", &ctx.output);
+                .replace("OUTPUT", &actual_output);
             let args = args.split_whitespace().collect::<Vec<&str>>();
             println!(
-                "Encoding video for youtube {actual_inputs} -> {0}",
-                ctx.output
+                "Encoding video for youtube {actual_inputs} -> {actual_output}"
             );
             println!("{}", run_ffmpeg(args)?);
         }
         Command::Upscale => {
-            if ctx.input_size > 1 {
-                bail!("Too many inputs");
+            if ctx.inputs.len() > 1 {
+                println!("{}", "Warning: Inputs length is greater than 1. Discarding...");
             }
 
-            if ctx.input_type != InputType::File {
+            if ctx.inputs_type != InputType::File {
                 bail!("Input is not a file.");
             }
 
-            let actual_inputs = ctx.input.single();
+            let actual_output = if let Some(out) = ctx.output("mp4") { out } else {
+                ctx.output
+            };
+
+            let actual_inputs = &ctx.inputs[0];
             let args = UPSCALE
                 .replace("INPUTS", &actual_inputs)
-                .replace("OUTPUT", &ctx.output);
+                .replace("OUTPUT", &actual_output);
             let args = args.split_whitespace().collect::<Vec<&str>>();
-            println!("Upscaling video {actual_inputs} -> {0}", ctx.output);
+            println!("Upscaling video {actual_inputs} -> {actual_output}");
             println!("{}", run_ffmpeg(args)?);
         }
         Command::Flip => {
-            if ctx.input_size > 1 {
-                bail!("Too many inputs");
+            if ctx.inputs.len() > 1 {
+                println!("{}", "Warning: Inputs length is greater than 1. Discarding...");
             }
-            if ctx.input_type != InputType::File {
+
+            if ctx.inputs_type != InputType::File {
                 bail!("Input is not a file.");
             }
 
-            let actual_inputs = ctx.input.single();
+            let actual_output = if let Some(out) = ctx.output("mp4") { out } else {
+                ctx.output
+            };
+
+            let actual_inputs = &ctx.inputs[0];
             let args = FLIP
                 .replace("INPUTS", &actual_inputs)
-                .replace("OUTPUT", &ctx.output);
+                .replace("OUTPUT", &actual_output);
             let args = args.split_whitespace().collect::<Vec<&str>>();
             println!(
-                "Flipping the video clockwise {actual_inputs} -> {0}",
-                ctx.output
+                "Flipping the video clockwise {actual_inputs} -> {actual_output}"
             );
             println!("{}", run_ffmpeg(args)?);
         }
