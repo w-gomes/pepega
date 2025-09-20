@@ -193,7 +193,7 @@ struct PepegaContext {
 impl PepegaContext {
     fn new(inputs: Vec<PathBuf>, output: Option<PathBuf>) -> Result<Self> {
         // Determine InputType.
-        // We assume all remaining inputs are the same.
+        // TODO: We assume all remaining inputs are the same.
         let inputs_type = if inputs[0].is_dir() { InputType::Directory } else { InputType::File };
         let output_has_extension;
 
