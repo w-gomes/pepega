@@ -11,9 +11,9 @@ use tempfile::tempdir_in;
     version
 )]
 #[command(
-    long_about = "pepega is a small program utility to simplify common video and audio tasks. From clipping and merging videos to extracting audio and encoding for various platforms. pepega leverages the power of FFmpeg"
+    long_about = "pepega is a small program tool to simplify common video and audio tasks. From clipping and merging videos to extracting audio and encoding for various platforms. pepega leverages the power of FFmpeg"
 )]
-struct Pepega {
+struct Args {
     /// Inputs files.
     /// These are the primary files the command will operate on.
     #[arg(
@@ -194,7 +194,11 @@ impl PepegaContext {
     fn new(inputs: Vec<PathBuf>, output: Option<PathBuf>) -> Result<Self> {
         // Determine InputType.
         // TODO: We assume all remaining inputs are the same.
-        let inputs_type = if inputs[0].is_dir() { InputType::Directory } else { InputType::File };
+        let inputs_type = if inputs[0].is_dir() {
+            InputType::Directory
+        } else {
+            InputType::File
+        };
         let output_has_extension;
 
         let is_input_rel = inputs[0].is_relative();
@@ -213,7 +217,7 @@ impl PepegaContext {
                 is_output_rel = is_input_rel;
                 let out = inputs[0].parent().unwrap().display().to_string();
                 out + "/output_tmp_name"
-            },
+            }
         };
 
         // Check if both output and inputs are relative.
@@ -223,9 +227,10 @@ impl PepegaContext {
         let is_relative = is_input_rel && is_output_rel;
 
         // Convert the inputs to String from PathBuf.
-        let inputs = inputs.iter().map(|path| {
-            path.display().to_string()
-        }).collect::<Vec<String>>();
+        let inputs = inputs
+            .iter()
+            .map(|path| path.display().to_string())
+            .collect::<Vec<String>>();
 
         Ok(Self {
             inputs,
@@ -246,7 +251,7 @@ impl PepegaContext {
 }
 
 fn main() -> Result<()> {
-    let program = Pepega::parse();
+    let program = Args::parse();
 
     let ctx = PepegaContext::new(program.inputs, program.output)?;
 
@@ -257,14 +262,19 @@ fn main() -> Result<()> {
     match program.command {
         Command::Clip { start, end, encode } => {
             if ctx.inputs.len() > 1 {
-                println!("{}", "Warning: Inputs length is greater than 1. Discarding...");
+                println!(
+                    "{}",
+                    "Warning: Inputs length is greater than 1. Discarding..."
+                );
             }
 
             if ctx.inputs_type != InputType::File {
                 bail!("Input is not a file.");
             }
 
-            let actual_output = if let Some(out) = ctx.output("mp4") { out } else {
+            let actual_output = if let Some(out) = ctx.output("mp4") {
+                out
+            } else {
                 ctx.output
             };
 
@@ -284,9 +294,7 @@ fn main() -> Result<()> {
             };
 
             let args = args.split_whitespace().collect::<Vec<&str>>();
-            println!(
-                "Creating a clip of {actual_inputs} [{start}...{end}] -> {actual_output}"
-            );
+            println!("Creating a clip of {actual_inputs} [{start}...{end}] -> {actual_output}");
             println!("{}", run_ffmpeg(args)?);
         }
         Command::Merge => {
@@ -342,7 +350,9 @@ fn main() -> Result<()> {
                 }
             }
 
-            let actual_output = if let Some(out) = ctx.output("mp4") { out } else {
+            let actual_output = if let Some(out) = ctx.output("mp4") {
+                out
+            } else {
                 ctx.output
             };
 
@@ -364,7 +374,10 @@ fn main() -> Result<()> {
 
         Command::Video { framerate } => {
             if ctx.inputs.len() > 1 {
-                println!("{}", "Warning: Inputs length is greater than 1. Discarding...");
+                println!(
+                    "{}",
+                    "Warning: Inputs length is greater than 1. Discarding..."
+                );
             }
 
             if ctx.inputs_type != InputType::Directory {
@@ -398,7 +411,9 @@ fn main() -> Result<()> {
                 }
             }
 
-            let actual_output = if let Some(out) = ctx.output("mp4") { out } else {
+            let actual_output = if let Some(out) = ctx.output("mp4") {
+                out
+            } else {
                 ctx.output
             };
 
@@ -415,14 +430,19 @@ fn main() -> Result<()> {
         }
         Command::Audio => {
             if ctx.inputs.len() > 1 {
-                println!("{}", "Warning: Inputs length is greater than 1. Discarding...");
+                println!(
+                    "{}",
+                    "Warning: Inputs length is greater than 1. Discarding..."
+                );
             }
 
             if ctx.inputs_type != InputType::File {
                 bail!("Input is not a file.");
             }
 
-            let actual_output = if let Some(out) = ctx.output("mp3") { out } else {
+            let actual_output = if let Some(out) = ctx.output("mp3") {
+                out
+            } else {
                 ctx.output
             };
 
@@ -436,14 +456,19 @@ fn main() -> Result<()> {
         }
         Command::Encode { encoders, crf } => {
             if ctx.inputs.len() > 1 {
-                println!("{}", "Warning: Inputs length is greater than 1. Discarding...");
+                println!(
+                    "{}",
+                    "Warning: Inputs length is greater than 1. Discarding..."
+                );
             }
 
             if ctx.inputs_type != InputType::File {
                 bail!("Input is not a file.");
             }
 
-            let actual_output = if let Some(out) = ctx.output("mp4") { out } else {
+            let actual_output = if let Some(out) = ctx.output("mp4") {
+                out
+            } else {
                 ctx.output
             };
 
@@ -477,14 +502,19 @@ fn main() -> Result<()> {
         }
         Command::Youtube => {
             if ctx.inputs.len() > 1 {
-                println!("{}", "Warning: Inputs length is greater than 1. Discarding...");
+                println!(
+                    "{}",
+                    "Warning: Inputs length is greater than 1. Discarding..."
+                );
             }
 
             if ctx.inputs_type != InputType::File {
                 bail!("Input is not a file.");
             }
 
-            let actual_output = if let Some(out) = ctx.output("mp4") { out } else {
+            let actual_output = if let Some(out) = ctx.output("mp4") {
+                out
+            } else {
                 ctx.output
             };
 
@@ -493,21 +523,24 @@ fn main() -> Result<()> {
                 .replace("INPUTS", &actual_inputs)
                 .replace("OUTPUT", &actual_output);
             let args = args.split_whitespace().collect::<Vec<&str>>();
-            println!(
-                "Encoding video for youtube {actual_inputs} -> {actual_output}"
-            );
+            println!("Encoding video for youtube {actual_inputs} -> {actual_output}");
             println!("{}", run_ffmpeg(args)?);
         }
         Command::Upscale => {
             if ctx.inputs.len() > 1 {
-                println!("{}", "Warning: Inputs length is greater than 1. Discarding...");
+                println!(
+                    "{}",
+                    "Warning: Inputs length is greater than 1. Discarding..."
+                );
             }
 
             if ctx.inputs_type != InputType::File {
                 bail!("Input is not a file.");
             }
 
-            let actual_output = if let Some(out) = ctx.output("mp4") { out } else {
+            let actual_output = if let Some(out) = ctx.output("mp4") {
+                out
+            } else {
                 ctx.output
             };
 
@@ -521,14 +554,19 @@ fn main() -> Result<()> {
         }
         Command::Flip => {
             if ctx.inputs.len() > 1 {
-                println!("{}", "Warning: Inputs length is greater than 1. Discarding...");
+                println!(
+                    "{}",
+                    "Warning: Inputs length is greater than 1. Discarding..."
+                );
             }
 
             if ctx.inputs_type != InputType::File {
                 bail!("Input is not a file.");
             }
 
-            let actual_output = if let Some(out) = ctx.output("mp4") { out } else {
+            let actual_output = if let Some(out) = ctx.output("mp4") {
+                out
+            } else {
                 ctx.output
             };
 
@@ -537,9 +575,7 @@ fn main() -> Result<()> {
                 .replace("INPUTS", &actual_inputs)
                 .replace("OUTPUT", &actual_output);
             let args = args.split_whitespace().collect::<Vec<&str>>();
-            println!(
-                "Flipping the video clockwise {actual_inputs} -> {actual_output}"
-            );
+            println!("Flipping the video clockwise {actual_inputs} -> {actual_output}");
             println!("{}", run_ffmpeg(args)?);
         }
     }
