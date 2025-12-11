@@ -134,8 +134,11 @@ impl Audio {
     pub fn input(mut self, path: &str) -> Self {
         self.args.push("-i".to_string());
         self.args.push(path.to_string());
-        self.args
-            .extend(["-vn", "mp3", "-b:a", "192k"].iter().map(|s| s.to_string()));
+        self.args.extend(
+            ["-vn", "-c:a", "mp3", "-b:a", "192k"]
+                .iter()
+                .map(|s| s.to_string()),
+        );
         self
     }
 
@@ -220,7 +223,7 @@ impl Youtube {
                 "-crf",
                 "18",
                 "-preset",
-                "ultrapfast",
+                "ultrafast",
                 "-c:a",
                 "aac",
                 "-b:a",
@@ -247,7 +250,7 @@ impl Youtube {
                 "-crf",
                 "18",
                 "-preset",
-                "ultrapfast",
+                "ultrafast",
                 "-c:a",
                 "aac",
                 "-b:a",
@@ -279,6 +282,20 @@ impl Upscale {
     pub fn input(mut self, path: &str) -> Self {
         self.args.push("-i".to_string());
         self.args.push(path.to_string());
+        self.args.extend(
+            [
+                "-vf",
+                "scale=iw*2:ih*2:flags=neighbor",
+                "-c:v",
+                "libx264",
+                "-crf",
+                "18",
+                "-preset",
+                "ultrafast",
+            ]
+            .iter()
+            .map(|s| s.to_string()),
+        );
         self
     }
 
@@ -297,7 +314,7 @@ impl Upscale {
                 "-crf",
                 "18",
                 "-preset",
-                "ultrapfast",
+                "ultrafast",
             ]
             .iter()
             .map(|s| s.to_string()),

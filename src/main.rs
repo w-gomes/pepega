@@ -1,29 +1,11 @@
-/* TESTED:
- *
- * clip: done
- * merge: done
- * video
-        [concat @ 000001778f264140] Impossible to open 'C:\dev\pepega\.\test\images\.tmpHrOuU5\.\test\images\ffxiv_01032025_020845_930.png'
-        [in#0 @ 000001778f263ec0] Error opening input: No such file or directory
-        Error opening input file C:\dev\pepega\.\test\images\.tmpHrOuU5\tmp_list.txt.
-        Error opening input files: No such file or directory
-        Error: -- Failed to execute ffmpeg. Error code: Some(-2) --
-        error: process didn't exit successfully: `target\debug\pepega.exe -i .\test\images\ video` (exit code: 1)
-
- * audio
- * encode: done
- * youtube
- * upscale
- * flip
-*/
 use std::{
-    fs::File,
+    fs::{self, File},
     io::Write,
     path::PathBuf,
     process::{Command, Stdio},
 };
 
-use anyhow::{anyhow, bail, Context, Result};
+use anyhow::{anyhow, Context};
 use clap::{Parser, Subcommand, ValueEnum};
 use tempfile::TempDir;
 
@@ -44,6 +26,10 @@ struct Cli {
     /// Output file.
     #[arg(short, long)]
     output: Option<PathBuf>,
+
+    /// Prints args sent to ffmpeg.
+    #[arg(long)]
+    test: bool,
 }
 
 #[derive(Subcommand, Debug)]
@@ -115,13 +101,11 @@ enum Encoders {
     AV1,
 }
 
-fn run_ffmpeg<Iter>(args: Iter) -> Result<&'static str>
+fn run_ffmpeg<Iter>(args: Iter, test: bool) -> anyhow::Result<&'static str>
 where
     Iter: std::iter::IntoIterator<Item = String> + std::fmt::Debug,
 {
-    let run_dummy = false;
-    if run_dummy {
-        println!("\nRunning dummy!");
+    if test {
         println!("- Args:\n{:?}\n", args);
         let ffmpeg = Command::new("ffmpeg")
             .arg("-version")
@@ -130,7 +114,7 @@ where
 
         let output = ffmpeg.wait_with_output()?;
         if !output.status.success() {
-            bail!(
+            anyhow::bail!(
                 "-- Failed to execute ffmpeg. Error code: {:?} -- ",
                 output.status.code()
             );
@@ -143,7 +127,7 @@ where
 
         let output = ffmpeg.wait_with_output()?;
         if !output.status.success() {
-            bail!(
+            anyhow::bail!(
                 "-- Failed to execute ffmpeg. Error code: {:?} -- ",
                 output.status.code()
             );
@@ -173,7 +157,7 @@ struct Ctx {
 }
 
 impl Ctx {
-    fn new(inputs: Vec<PathBuf>, output: Option<PathBuf>) -> Result<Self> {
+    fn new(inputs: Vec<PathBuf>, output: Option<PathBuf>) -> anyhow::Result<Self> {
         // Determine InputType.
         let inputs_type = if inputs[0].is_dir() {
             InputType::Directory
@@ -207,7 +191,7 @@ impl Ctx {
     }
 }
 
-fn main() -> Result<()> {
+fn main() -> anyhow::Result<()> {
     let cli = Cli::parse();
 
     let ctx = Ctx::new(cli.inputs, cli.output)?;
@@ -215,7 +199,7 @@ fn main() -> Result<()> {
     match cli.task {
         Tasks::Clip { start, end, encode } => {
             if ctx.inputs.inputs_type != InputType::File {
-                bail!("Input is not a file.");
+                anyhow::bail!("Input is not a file.");
             }
 
             let output = if let Some(out) = ctx.output.output {
@@ -234,7 +218,7 @@ fn main() -> Result<()> {
                 .output(&output);
 
             println!("Creating a clip.");
-            println!("{}", run_ffmpeg(clip.args.into_iter())?);
+            println!("{}", run_ffmpeg(clip.args.into_iter(), cli.test)?);
         }
         Tasks::Merge => {
             let mut filters = String::new();
@@ -245,7 +229,7 @@ fn main() -> Result<()> {
                 // It's multiple files, apply the filters.
                 InputType::File => {
                     if inputs.len() < 2 {
-                        bail!("Not enough inputs");
+                        anyhow::bail!("Not enough inputs");
                     }
 
                     let total_inputs = inputs.len();
@@ -271,8 +255,9 @@ fn main() -> Result<()> {
                         .flatten()
                     {
                         let entry_path = entry.path();
-                        let entry_path_str =
-                            entry_path.to_str().context("Failed to convert to &str.")?;
+                        let entry_path_str = entry_path.to_str().with_context(|| {
+                            format!("Failed to convert {} to &str.", entry_path.display())
+                        })?;
                         if entry_path_str.ends_with("mkv") || entry_path_str.ends_with("mp4") {
                             new_inputs.push(entry_path_str.to_string());
                         }
@@ -298,30 +283,39 @@ fn main() -> Result<()> {
                 .output(&output);
 
             println!("Merging {} videos.", new_inputs.len());
-            println!("{}", run_ffmpeg(merge.args.into_iter())?);
+            println!("{}", run_ffmpeg(merge.args.into_iter(), cli.test)?);
         }
         Tasks::Video { framerate } => {
             if ctx.inputs.inputs_type != InputType::Directory {
-                bail!("input is not a directory.");
+                anyhow::bail!("input is not a directory.");
             }
 
-            // Creates temporary dir and file
-            let source_dir = PathBuf::from(&ctx.inputs.inputs[0]);
-            let tmp_dir =
-                TempDir::new_in(&source_dir).expect("Failed to create a temporary folder");
+            // Creates a temporary dir and a file
+            let tmp_dir = TempDir::new_in(".").expect("Failed to create a temporary folder");
             let tmp_list = tmp_dir.path().join("tmp_list.txt");
             let mut tmp_list_file =
                 File::create(&tmp_list).expect("Failed to create a tmp image list file");
 
             let mut total_images = 0;
+
+            let source_dir = PathBuf::from(&ctx.inputs.inputs[0]);
             for entry in source_dir
                 .read_dir()
                 .expect("Failed to read entries in directory")
                 .flatten()
             {
                 let entry_path = entry.path();
-                let entry_path_str = entry_path.to_str().context("Failed to convert to &str.")?;
+                let entry_path_absolute = fs::canonicalize(&entry_path).with_context(|| {
+                    format!("Failed to get absolute path of {}", entry_path.display())
+                })?;
+                let entry_path_str = entry_path_absolute.to_str().with_context(|| {
+                    format!(
+                        "Failed to convert {} to &str.",
+                        entry_path_absolute.display()
+                    )
+                })?;
                 if entry_path_str.ends_with("png") || entry_path_str.ends_with("jpg") {
+                    dbg!(entry_path_str);
                     writeln!(tmp_list_file, "file '{}'", entry_path_str)
                         .expect("Failed to write to tmp_list_file");
                     writeln!(tmp_list_file, "duration {}", framerate)
@@ -343,28 +337,28 @@ fn main() -> Result<()> {
 
             let video = Video::new().input(&input).output(&output);
             println!("Creating a video from {total_images} images.");
-            println!("{}", run_ffmpeg(video.args.into_iter())?);
+            println!("{}", run_ffmpeg(video.args.into_iter(), cli.test)?);
         }
         Tasks::Audio => {
             if ctx.inputs.inputs_type != InputType::File {
-                bail!("Input is not a file.");
+                anyhow::bail!("Input is not a file.");
             }
 
             let output = if let Some(out) = ctx.output.output {
                 out
             } else {
-                "encode_output.mp4".to_string()
+                "encode_output.mp3".to_string()
             };
 
             let input = &ctx.inputs.inputs[0];
 
             let audio = Audio::new().input(&input).output(&output);
             println!("Extracting a audio.");
-            println!("{}", run_ffmpeg(audio.args.into_iter())?);
+            println!("{}", run_ffmpeg(audio.args.into_iter(), cli.test)?);
         }
         Tasks::Encode { encoders, crf } => {
             if ctx.inputs.inputs_type != InputType::File {
-                bail!("Input is not a file.");
+                anyhow::bail!("Input is not a file.");
             }
 
             let output = if let Some(out) = ctx.output.output {
@@ -381,11 +375,11 @@ fn main() -> Result<()> {
                 .output(&output);
 
             println!("Encoding a video.");
-            println!("{}", run_ffmpeg(encode.args.into_iter())?);
+            println!("{}", run_ffmpeg(encode.args.into_iter(), cli.test)?);
         }
         Tasks::Youtube => {
             if ctx.inputs.inputs_type != InputType::File {
-                bail!("Input is not a file.");
+                anyhow::bail!("Input is not a file.");
             }
 
             let output = if let Some(out) = ctx.output.output {
@@ -398,11 +392,11 @@ fn main() -> Result<()> {
 
             let youtube = Youtube::new().input(&input).output(&output);
             println!("Encoding a video for youtube.");
-            println!("{}", run_ffmpeg(youtube.args.into_iter())?);
+            println!("{}", run_ffmpeg(youtube.args.into_iter(), cli.test)?);
         }
         Tasks::Upscale => {
             if ctx.inputs.inputs_type != InputType::File {
-                bail!("input is not a file.");
+                anyhow::bail!("input is not a file.");
             }
 
             let output = if let Some(out) = ctx.output.output {
@@ -416,11 +410,11 @@ fn main() -> Result<()> {
             let upscale = Upscale::new().input(&input).output(&output);
 
             println!("Upscaling a video.");
-            println!("{}", run_ffmpeg(upscale.args.into_iter())?);
+            println!("{}", run_ffmpeg(upscale.args.into_iter(), cli.test)?);
         }
         Tasks::Flip => {
             if ctx.inputs.inputs_type != InputType::File {
-                bail!("input is not a file.");
+                anyhow::bail!("input is not a file.");
             }
 
             let output = if let Some(out) = ctx.output.output {
@@ -434,7 +428,7 @@ fn main() -> Result<()> {
             let flip = Flip::new().input(&input).output(&output);
 
             println!("Flipping a video.");
-            println!("{}", run_ffmpeg(flip.args.into_iter())?);
+            println!("{}", run_ffmpeg(flip.args.into_iter(), cli.test)?);
         }
     }
 
