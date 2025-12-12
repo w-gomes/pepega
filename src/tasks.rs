@@ -52,7 +52,7 @@ impl<'a> Clip<'a> {
 }
 
 pub(crate) struct Merge<'a> {
-    pub args: SmallVec<[&'a str; 24]>,
+    pub args: SmallVec<[&'a str; 32]>,
 }
 
 impl<'a> Merge<'a> {
@@ -88,7 +88,7 @@ impl<'a> Merge<'a> {
 }
 
 pub(crate) struct Video<'a> {
-    pub args: SmallVec<[&'a str; 14]>,
+    pub args: SmallVec<[&'a str; 16]>,
 }
 
 impl<'a> Video<'a> {
@@ -114,7 +114,7 @@ impl<'a> Video<'a> {
 }
 
 pub(crate) struct Audio<'a> {
-    pub args: SmallVec<[&'a str; 10]>,
+    pub args: SmallVec<[&'a str; 16]>,
 }
 
 impl<'a> Audio<'a> {
@@ -139,7 +139,7 @@ impl<'a> Audio<'a> {
 }
 
 pub(crate) struct Encode<'a> {
-    pub args: SmallVec<[&'a str; 12]>,
+    pub args: SmallVec<[&'a str; 16]>,
 }
 
 impl<'a> Encode<'a> {
@@ -177,7 +177,7 @@ impl<'a> Encode<'a> {
 }
 
 pub(crate) struct Youtube<'a> {
-    pub args: SmallVec<[&'a str; 18]>,
+    pub args: SmallVec<[&'a str; 16]>,
 }
 
 impl<'a> Youtube<'a> {
@@ -216,7 +216,7 @@ impl<'a> Youtube<'a> {
 }
 
 pub(crate) struct Upscale<'a> {
-    pub args: SmallVec<[&'a str; 14]>,
+    pub args: SmallVec<[&'a str; 16]>,
 }
 
 impl<'a> Upscale<'a> {
@@ -251,7 +251,7 @@ impl<'a> Upscale<'a> {
 }
 
 pub(crate) struct Flip<'a> {
-    pub args: SmallVec<[&'a str; 10]>,
+    pub args: SmallVec<[&'a str; 16]>,
 }
 
 impl<'a> Flip<'a> {
