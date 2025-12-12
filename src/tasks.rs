@@ -74,10 +74,10 @@ impl<'a> Merge<'a> {
         self.args.push("-filter_complex");
         self.args.push(filters);
         // Filter options
-        self.args.extend(["-map", "[v]", "-map", "[a]"].into_iter());
+        self.args.extend_from_slice(&["-map", "[v]", "-map", "[a]"]);
         // Encode options
         self.args
-            .extend(["-c:v", "libx264", "-pix_fmt", "yuv420p", "-c:a", "aac"].into_iter());
+            .extend_from_slice(&["-c:v", "libx264", "-pix_fmt", "yuv420p", "-c:a", "aac"]);
         self
     }
 
@@ -100,10 +100,10 @@ impl<'a> Video<'a> {
 
     pub fn input(mut self, path: &'a str) -> Self {
         self.args
-            .extend(["-f", "concat", "-safe", "0", "-i"].into_iter());
+            .extend_from_slice(&["-f", "concat", "-safe", "0", "-i"]);
         self.args.push(path);
         self.args
-            .extend(["-c:v", "libx264", "-r", "30", "-pix_fmt", "yuv420p"].into_iter());
+            .extend_from_slice(&["-c:v", "libx264", "-r", "30", "-pix_fmt", "yuv420p"]);
         self
     }
 
@@ -128,7 +128,7 @@ impl<'a> Audio<'a> {
         self.args.push("-i");
         self.args.push(path);
         self.args
-            .extend(["-vn", "-c:a", "mp3", "-b:a", "192k"].into_iter());
+            .extend_from_slice(&["-vn", "-c:a", "mp3", "-b:a", "192k"]);
         self
     }
 
@@ -155,11 +155,11 @@ impl<'a> Encode<'a> {
         self
     }
 
-    pub fn encode(mut self, encoder: Encoders, crf: i16) -> Self {
+    pub fn encode(mut self, encoder: Encoders, crf: &'a str) -> Self {
         let (encoder, preset, flag, value) = match encoder {
             Encoders::H264 => ("libx264", "ultrafast", "-crf", crf),
-            Encoders::H265 => ("hevc_nvenc", "p1", "-cq", 20),
-            Encoders::AV1 => ("av1_nvenc", "p1", "-cq", 20),
+            Encoders::H265 => ("hevc_nvenc", "p1", "-cq", "20"),
+            Encoders::AV1 => ("av1_nvenc", "p1", "-cq", "20"),
         };
         self.args.push("-c:v");
         self.args.push(encoder);
@@ -190,8 +190,8 @@ impl<'a> Youtube<'a> {
     pub fn input(mut self, path: &'a str) -> Self {
         self.args.push("-i");
         self.args.push(path);
-        self.args.extend(
-            [
+        self.args.extend_from_slice(
+            &[
                 "-c:v",
                 "libx264",
                 "-crf",
@@ -205,7 +205,6 @@ impl<'a> Youtube<'a> {
                 "-pix_fmt",
                 "yuv420p",
             ]
-            .into_iter(),
         );
         self
     }
@@ -230,8 +229,8 @@ impl<'a> Upscale<'a> {
     pub fn input(mut self, path: &'a str) -> Self {
         self.args.push("-i");
         self.args.push(path);
-        self.args.extend(
-            [
+        self.args.extend_from_slice(
+            &[
                 "-vf",
                 "scale=iw*2:ih*2:flags=neighbor",
                 "-c:v",
@@ -241,7 +240,6 @@ impl<'a> Upscale<'a> {
                 "-preset",
                 "ultrafast",
             ]
-            .into_iter(),
         );
         self
     }
@@ -253,7 +251,7 @@ impl<'a> Upscale<'a> {
 }
 
 pub(crate) struct Flip<'a> {
-    pub args: Vec<[&'a str; 10]>,
+    pub args: SmallVec<[&'a str; 10]>,
 }
 
 impl<'a> Flip<'a> {

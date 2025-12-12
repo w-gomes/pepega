@@ -199,7 +199,7 @@ impl Ctx {
         self.inputs.inputs.get(0).unwrap()
     }
 
-    fn output(&self, command: &str, extension: &str) -> &str {
+    fn output(&self, command: &str, extension: &str) -> String {
         match &self.output.output {
             Some(out) => out.to_string(),
             None => Self::generate_output(command, extension),
@@ -241,10 +241,11 @@ fn main() -> anyhow::Result<()> {
         }
         Tasks::Merge => {
             let mut filters = String::new();
+            let mut new_inputs = Vec::new();
             let inputs = ctx.inputs();
 
             // Check the input type and write the entries to the tmp file.
-            let new_inputs = match ctx.inputs.inputs_type {
+            let inputs = match ctx.inputs.inputs_type {
                 // It's multiple files, apply the filters.
                 InputType::File => {
                     if inputs.len() < 2 {
@@ -265,7 +266,6 @@ fn main() -> anyhow::Result<()> {
                 InputType::Directory => {
                     // We use PathBuf to iterate the directory.
                     let input_path = PathBuf::from(inputs[0].clone());
-                    let mut new_inputs = Vec::new();
 
                     let mut idx = 0;
                     for entry in input_path
@@ -286,18 +286,18 @@ fn main() -> anyhow::Result<()> {
                     }
                     filters.push_str(format!("concat=n={}:v=1:a=1[v][a]", idx).as_str());
 
-                    new_inputs
+                    &new_inputs
                 }
             };
 
             let output = ctx.output("merge", "mp4");
 
             let merge = Merge::new()
-                .inputs(&new_inputs)
+                .inputs(inputs)
                 .filters(&filters)
                 .output(&output);
 
-            println!("Merging {} videos.", new_inputs.len());
+            println!("Merging {} videos.", inputs.len());
             println!("{}", run_ffmpeg(merge.args.into_iter(), cli.test)?);
         }
         Tasks::Video { framerate } => {
@@ -366,9 +366,10 @@ fn main() -> anyhow::Result<()> {
             let input = ctx.input();
             let output = ctx.output("encode", "mp4");
 
+            let crf = crf.to_string();
             let encode = Encode::new()
                 .input(input)
-                .encode(encoders, crf)
+                .encode(encoders, &crf)
                 .output(&output);
 
             println!("Encoding a video.");
