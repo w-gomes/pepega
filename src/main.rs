@@ -6,6 +6,7 @@ use std::{
 };
 
 use anyhow::{anyhow, Context};
+use chrono::Local;
 use clap::{Parser, Subcommand, ValueEnum};
 use tempfile::TempDir;
 
@@ -101,9 +102,9 @@ enum Encoders {
     AV1,
 }
 
-fn run_ffmpeg<Iter>(args: Iter, test: bool) -> anyhow::Result<&'static str>
+fn run_ffmpeg<'a, Iter>(args: Iter, test: bool) -> anyhow::Result<&'static str>
 where
-    Iter: std::iter::IntoIterator<Item = String> + std::fmt::Debug,
+    Iter: std::iter::IntoIterator<Item = &'a str> + std::fmt::Debug,
 {
     if test {
         println!("- Args:\n{:?}\n", args);
@@ -189,6 +190,29 @@ impl Ctx {
 
         Ok(Self { inputs, output })
     }
+
+    fn inputs(&self) -> &[String] {
+        &self.inputs.inputs
+    }
+
+    fn input(&self) -> &str {
+        self.inputs.inputs.get(0).unwrap()
+    }
+
+    fn output(&self, command: &str, extension: &str) -> &str {
+        match &self.output.output {
+            Some(out) => out.to_string(),
+            None => Self::generate_output(command, extension),
+        }
+    }
+
+    fn generate_output(command: &str, extension: &str) -> String {
+        let now = Local::now();
+
+        let timestamp = now.format("%Y%m%d_%H%M%S").to_string();
+
+        format!("{}_{}.{}", command, timestamp, extension)
+    }
 }
 
 fn main() -> anyhow::Result<()> {
@@ -202,17 +226,12 @@ fn main() -> anyhow::Result<()> {
                 anyhow::bail!("Input is not a file.");
             }
 
-            let output = if let Some(out) = ctx.output.output {
-                out
-            } else {
-                "clip_output.mp4".to_string()
-            };
-
-            let input = &ctx.inputs.inputs[0];
+            let input = ctx.input();
+            let output = ctx.output("clip", "mp4");
 
             let clip = Clip::new()
                 .start(&start)
-                .input(&input)
+                .input(input)
                 .end(&end)
                 .encode(encode)
                 .output(&output);
@@ -222,7 +241,7 @@ fn main() -> anyhow::Result<()> {
         }
         Tasks::Merge => {
             let mut filters = String::new();
-            let inputs = &ctx.inputs.inputs;
+            let inputs = ctx.inputs();
 
             // Check the input type and write the entries to the tmp file.
             let new_inputs = match ctx.inputs.inputs_type {
@@ -238,7 +257,7 @@ fn main() -> anyhow::Result<()> {
                     }
                     filters.push_str(format!("concat=n={}:v=1:a=1[v][a]", total_inputs).as_str());
 
-                    ctx.inputs.inputs
+                    inputs
                 }
                 // It's a single directory, we iterator over that and read
                 // each entry checking if they end with mp4 or mkv and write their
@@ -271,11 +290,7 @@ fn main() -> anyhow::Result<()> {
                 }
             };
 
-            let output = if let Some(out) = ctx.output.output {
-                out
-            } else {
-                "videos_merged_output.mp4".to_string()
-            };
+            let output = ctx.output("merge", "mp4");
 
             let merge = Merge::new()
                 .inputs(&new_inputs)
@@ -324,18 +339,10 @@ fn main() -> anyhow::Result<()> {
                 }
             }
 
-            let output = if let Some(out) = ctx.output.output {
-                out
-            } else {
-                "video_from_images_output.mp4".to_string()
-            };
+            let output = ctx.output("video_from_images", "mp4");
+            let input = tmp_list.to_str().context("Failed to convert to &str.")?;
 
-            let input = tmp_list
-                .to_str()
-                .context("Failed to convert to &str.")?
-                .to_string();
-
-            let video = Video::new().input(&input).output(&output);
+            let video = Video::new().input(input).output(&output);
             println!("Creating a video from {total_images} images.");
             println!("{}", run_ffmpeg(video.args.into_iter(), cli.test)?);
         }
@@ -344,15 +351,10 @@ fn main() -> anyhow::Result<()> {
                 anyhow::bail!("Input is not a file.");
             }
 
-            let output = if let Some(out) = ctx.output.output {
-                out
-            } else {
-                "encode_output.mp3".to_string()
-            };
+            let input = ctx.input();
+            let output = ctx.output("audio", "mp3");
 
-            let input = &ctx.inputs.inputs[0];
-
-            let audio = Audio::new().input(&input).output(&output);
+            let audio = Audio::new().input(input).output(&output);
             println!("Extracting a audio.");
             println!("{}", run_ffmpeg(audio.args.into_iter(), cli.test)?);
         }
@@ -361,16 +363,11 @@ fn main() -> anyhow::Result<()> {
                 anyhow::bail!("Input is not a file.");
             }
 
-            let output = if let Some(out) = ctx.output.output {
-                out
-            } else {
-                "encode_output.mp4".to_string()
-            };
-
-            let input = &ctx.inputs.inputs[0];
+            let input = ctx.input();
+            let output = ctx.output("encode", "mp4");
 
             let encode = Encode::new()
-                .input(&input)
+                .input(input)
                 .encode(encoders, crf)
                 .output(&output);
 
@@ -382,15 +379,10 @@ fn main() -> anyhow::Result<()> {
                 anyhow::bail!("Input is not a file.");
             }
 
-            let output = if let Some(out) = ctx.output.output {
-                out
-            } else {
-                "youtube_output.mp4".to_string()
-            };
+            let input = ctx.input();
+            let output = ctx.output("youtube", "mp4");
 
-            let input = &ctx.inputs.inputs[0];
-
-            let youtube = Youtube::new().input(&input).output(&output);
+            let youtube = Youtube::new().input(input).output(&output);
             println!("Encoding a video for youtube.");
             println!("{}", run_ffmpeg(youtube.args.into_iter(), cli.test)?);
         }
@@ -399,15 +391,10 @@ fn main() -> anyhow::Result<()> {
                 anyhow::bail!("input is not a file.");
             }
 
-            let output = if let Some(out) = ctx.output.output {
-                out
-            } else {
-                "upscale_output.mp4".to_string()
-            };
+            let input = ctx.input();
+            let output = ctx.output("upscale", "mp4");
 
-            let input = &ctx.inputs.inputs[0];
-
-            let upscale = Upscale::new().input(&input).output(&output);
+            let upscale = Upscale::new().input(input).output(&output);
 
             println!("Upscaling a video.");
             println!("{}", run_ffmpeg(upscale.args.into_iter(), cli.test)?);
@@ -417,15 +404,10 @@ fn main() -> anyhow::Result<()> {
                 anyhow::bail!("input is not a file.");
             }
 
-            let output = if let Some(out) = ctx.output.output {
-                out
-            } else {
-                "flip_output.mp4".to_string()
-            };
+            let input = ctx.input();
+            let output = ctx.output("flip", "mp4");
 
-            let input = &ctx.inputs.inputs[0];
-
-            let flip = Flip::new().input(&input).output(&output);
+            let flip = Flip::new().input(input).output(&output);
 
             println!("Flipping a video.");
             println!("{}", run_ffmpeg(flip.args.into_iter(), cli.test)?);
