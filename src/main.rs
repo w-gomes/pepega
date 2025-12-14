@@ -208,7 +208,7 @@ impl Ctx {
 
         let timestamp = now.format("%Y%m%d_%H%M%S").to_string();
 
-        format!("{}_{}.{}", command, timestamp, extension)
+        format!("{command}_{timestamp}.{extension}")
     }
 }
 
@@ -327,7 +327,6 @@ fn main() -> anyhow::Result<()> {
                     )
                 })?;
                 if entry_path_str.ends_with("png") || entry_path_str.ends_with("jpg") {
-                    dbg!(entry_path_str);
                     writeln!(tmp_list_file, "file '{}'", entry_path_str)
                         .expect("Failed to write to tmp_list_file");
                     writeln!(tmp_list_file, "duration {}", framerate)
