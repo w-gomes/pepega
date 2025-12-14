@@ -181,12 +181,9 @@ impl Ctx {
             None
         };
 
-        let inputs = Inputs {
-            inputs: inputs,
-            inputs_type: inputs_type,
-        };
+        let inputs = Inputs { inputs, inputs_type };
 
-        let output = Output { output: output };
+        let output = Output { output };
 
         Ok(Self { inputs, output })
     }
@@ -196,7 +193,7 @@ impl Ctx {
     }
 
     fn input(&self) -> &str {
-        self.inputs.inputs.get(0).unwrap()
+        self.inputs.inputs.first().unwrap()
     }
 
     fn output(&self, command: &str, extension: &str) -> String {
