@@ -82,20 +82,31 @@ enum Tasks {
         crf: i16,
     },
 
-    /// Encodes a video with options specifically for YouTube.
+    /// Encodes a video with options specifically for `YouTube`.
     Youtube,
 
-    /// Upscales a video for higher peak quality on platforms like YouTube.
-    /// Uses FFmpeg's recommended settings for upscalling.
-    /// https://trac.ffmpeg.org/wiki/Encode/YouTube#Upscalingvideoforhigherpeakquality
+    /// Upscales a video for higher peak quality on platforms like `YouTube`.
+    /// Uses `FFmpeg`'s recommended settings for upscalling.
+    /// `<https://trac.ffmpeg.org/wiki/Encode/YouTube#Upscalingvideoforhigherpeakquality>`
     Upscale,
 
     /// Flips a video clockwise.
     Flip,
+
+    /// Converts video to gif format. Works like Clip command.
+    Gif {
+        /// Start time of the video (e.g. "00:01:30.000" for 1 minute 30 seconds.
+        #[arg(help = "Start time of the clip.")]
+        start: String,
+
+        /// End time of the video (e.g. "00:02:00.000")
+        #[arg(help = "End time of the clip.")]
+        end: String,
+    },
 }
 
 // TODO: Why do we need Clone here?
-#[derive(ValueEnum, Debug, Clone)]
+#[derive(ValueEnum, Debug, Clone, Copy)]
 enum Encoders {
     H264,
     H265,
@@ -107,7 +118,7 @@ where
     Iter: std::iter::IntoIterator<Item = &'a str> + std::fmt::Debug,
 {
     if test {
-        println!("- Args:\n{:?}\n", args);
+        println!("- Args:\n{args:?}\n");
         let ffmpeg = Command::new("ffmpeg")
             .arg("-version")
             .stdout(Stdio::piped())
@@ -158,7 +169,7 @@ struct Ctx {
 }
 
 impl Ctx {
-    fn new(inputs: Vec<PathBuf>, output: Option<PathBuf>) -> anyhow::Result<Self> {
+    fn new(inputs: &[PathBuf], output: Option<PathBuf>) -> anyhow::Result<Self> {
         // Determine InputType.
         let inputs_type = if inputs[0].is_dir() {
             InputType::Directory
@@ -181,7 +192,10 @@ impl Ctx {
             None
         };
 
-        let inputs = Inputs { inputs, inputs_type };
+        let inputs = Inputs {
+            inputs,
+            inputs_type,
+        };
 
         let output = Output { output };
 
@@ -193,14 +207,14 @@ impl Ctx {
     }
 
     fn input(&self) -> &str {
-        self.inputs.inputs.first().unwrap()
+        &self.inputs.inputs[0]
     }
 
     fn output(&self, command: &str, extension: &str) -> String {
-        match &self.output.output {
-            Some(out) => out.to_string(),
-            None => Self::generate_output(command, extension),
-        }
+        self.output
+            .output
+            .as_ref()
+            .map_or_else(|| Self::generate_output(command, extension), String::clone)
     }
 
     fn generate_output(command: &str, extension: &str) -> String {
@@ -212,10 +226,11 @@ impl Ctx {
     }
 }
 
+#[allow(clippy::too_many_lines)]
 fn main() -> anyhow::Result<()> {
     let cli = Cli::parse();
 
-    let ctx = Ctx::new(cli.inputs, cli.output)?;
+    let ctx = Ctx::new(&cli.inputs, cli.output)?;
 
     match cli.task {
         Tasks::Clip { start, end, encode } => {
@@ -250,10 +265,10 @@ fn main() -> anyhow::Result<()> {
                     }
 
                     let total_inputs = inputs.len();
-                    for i in 0..total_inputs {
-                        filters.push_str(format!("[{0}:v:0][{0}:a:0]", i).as_str());
+                    for input in 0..total_inputs {
+                        filters.push_str(format!("[{input}:v:0][{input}:a:0]").as_str());
                     }
-                    filters.push_str(format!("concat=n={}:v=1:a=1[v][a]", total_inputs).as_str());
+                    filters.push_str(format!("concat=n={total_inputs}:v=1:a=1[v][a]").as_str());
 
                     inputs
                 }
@@ -265,11 +280,7 @@ fn main() -> anyhow::Result<()> {
                     let input_path = PathBuf::from(inputs[0].clone());
 
                     let mut idx = 0;
-                    for entry in input_path
-                        .read_dir()
-                        .expect("Failed to read entries in directory.")
-                        .flatten()
-                    {
+                    for entry in input_path.read_dir()?.flatten() {
                         let entry_path = entry.path();
                         let entry_path_str = entry_path.to_str().with_context(|| {
                             format!("Failed to convert {} to &str.", entry_path.display())
@@ -278,10 +289,10 @@ fn main() -> anyhow::Result<()> {
                             new_inputs.push(entry_path_str.to_string());
                         }
 
-                        filters.push_str(format!("[{0}:v:0][{0}:a:0]", idx).as_str());
+                        filters.push_str(format!("[{idx}:v:0][{idx}:a:0]").as_str());
                         idx += 1;
                     }
-                    filters.push_str(format!("concat=n={}:v=1:a=1[v][a]", idx).as_str());
+                    filters.push_str(format!("concat=n={idx}:v=1:a=1[v][a]").as_str());
 
                     &new_inputs
                 }
@@ -303,19 +314,14 @@ fn main() -> anyhow::Result<()> {
             }
 
             // Creates a temporary dir and a file
-            let tmp_dir = TempDir::new_in(".").expect("Failed to create a temporary folder");
+            let tmp_dir = TempDir::new_in(".")?;
             let tmp_list = tmp_dir.path().join("tmp_list.txt");
-            let mut tmp_list_file =
-                File::create(&tmp_list).expect("Failed to create a tmp image list file");
+            let mut tmp_list_file = File::create(&tmp_list)?;
 
             let mut total_images = 0;
 
             let source_dir = PathBuf::from(&ctx.inputs.inputs[0]);
-            for entry in source_dir
-                .read_dir()
-                .expect("Failed to read entries in directory")
-                .flatten()
-            {
+            for entry in source_dir.read_dir()?.flatten() {
                 let entry_path = entry.path();
                 let entry_path_absolute = fs::canonicalize(&entry_path).with_context(|| {
                     format!("Failed to get absolute path of {}", entry_path.display())
@@ -327,10 +333,8 @@ fn main() -> anyhow::Result<()> {
                     )
                 })?;
                 if entry_path_str.ends_with("png") || entry_path_str.ends_with("jpg") {
-                    writeln!(tmp_list_file, "file '{}'", entry_path_str)
-                        .expect("Failed to write to tmp_list_file");
-                    writeln!(tmp_list_file, "duration {}", framerate)
-                        .expect("Failed to write to tmp_list_file");
+                    writeln!(tmp_list_file, "file '{entry_path_str}'")?;
+                    writeln!(tmp_list_file, "duration {framerate}")?;
                     total_images += 1;
                 }
             }

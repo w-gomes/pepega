@@ -2,7 +2,7 @@ use crate::Encoders;
 
 use smallvec::SmallVec;
 
-pub(crate) struct Clip<'a> {
+pub struct Clip<'a> {
     pub args: SmallVec<[&'a str; 16]>,
 }
 
@@ -51,7 +51,7 @@ impl<'a> Clip<'a> {
     }
 }
 
-pub(crate) struct Merge<'a> {
+pub struct Merge<'a> {
     pub args: SmallVec<[&'a str; 32]>,
 }
 
@@ -87,7 +87,7 @@ impl<'a> Merge<'a> {
     }
 }
 
-pub(crate) struct Video<'a> {
+pub struct Video<'a> {
     pub args: SmallVec<[&'a str; 16]>,
 }
 
@@ -113,7 +113,7 @@ impl<'a> Video<'a> {
     }
 }
 
-pub(crate) struct Audio<'a> {
+pub struct Audio<'a> {
     pub args: SmallVec<[&'a str; 16]>,
 }
 
@@ -138,7 +138,7 @@ impl<'a> Audio<'a> {
     }
 }
 
-pub(crate) struct Encode<'a> {
+pub struct Encode<'a> {
     pub args: SmallVec<[&'a str; 16]>,
 }
 
@@ -176,7 +176,7 @@ impl<'a> Encode<'a> {
     }
 }
 
-pub(crate) struct Youtube<'a> {
+pub struct Youtube<'a> {
     pub args: SmallVec<[&'a str; 16]>,
 }
 
@@ -190,22 +190,20 @@ impl<'a> Youtube<'a> {
     pub fn input(mut self, path: &'a str) -> Self {
         self.args.push("-i");
         self.args.push(path);
-        self.args.extend_from_slice(
-            &[
-                "-c:v",
-                "libx264",
-                "-crf",
-                "18",
-                "-preset",
-                "ultrafast",
-                "-c:a",
-                "aac",
-                "-b:a",
-                "384k",
-                "-pix_fmt",
-                "yuv420p",
-            ]
-        );
+        self.args.extend_from_slice(&[
+            "-c:v",
+            "libx264",
+            "-crf",
+            "18",
+            "-preset",
+            "ultrafast",
+            "-c:a",
+            "aac",
+            "-b:a",
+            "384k",
+            "-pix_fmt",
+            "yuv420p",
+        ]);
         self
     }
 
@@ -215,7 +213,7 @@ impl<'a> Youtube<'a> {
     }
 }
 
-pub(crate) struct Upscale<'a> {
+pub struct Upscale<'a> {
     pub args: SmallVec<[&'a str; 16]>,
 }
 
@@ -229,18 +227,16 @@ impl<'a> Upscale<'a> {
     pub fn input(mut self, path: &'a str) -> Self {
         self.args.push("-i");
         self.args.push(path);
-        self.args.extend_from_slice(
-            &[
-                "-vf",
-                "scale=iw*2:ih*2:flags=neighbor",
-                "-c:v",
-                "libx264",
-                "-crf",
-                "18",
-                "-preset",
-                "ultrafast",
-            ]
-        );
+        self.args.extend_from_slice(&[
+            "-vf",
+            "scale=iw*2:ih*2:flags=neighbor",
+            "-c:v",
+            "libx264",
+            "-crf",
+            "18",
+            "-preset",
+            "ultrafast",
+        ]);
         self
     }
 
@@ -250,7 +246,7 @@ impl<'a> Upscale<'a> {
     }
 }
 
-pub(crate) struct Flip<'a> {
+pub struct Flip<'a> {
     pub args: SmallVec<[&'a str; 16]>,
 }
 
