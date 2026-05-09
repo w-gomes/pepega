@@ -11,7 +11,7 @@ use clap::{Parser, Subcommand, ValueEnum};
 use tempfile::TempDir;
 
 mod tasks;
-use crate::tasks::{Audio, Clip, Encode, Flip, Merge, Upscale, Video, Youtube};
+use crate::tasks::{Audio, Clip, Encode, Flip, Gif, Merge, Upscale, Video, Youtube};
 
 #[derive(Parser, Debug)]
 #[command(name = "pepega", about = "video and audio tool.", version)]
@@ -93,7 +93,9 @@ enum Tasks {
     /// Flips a video clockwise.
     Flip,
 
-    /// Converts video to gif format. Works like Clip command.
+    /// Creates a gif of a video with START and END times.
+    /// You probably do not want very long gif, because the size of output
+    /// file is large, even for a short gif.
     Gif {
         /// Start time of the video (e.g. "00:01:30.000" for 1 minute 30 seconds.
         #[arg(help = "Start time of the clip.")]
@@ -412,6 +414,25 @@ fn main() -> anyhow::Result<()> {
 
             println!("Flipping a video.");
             println!("{}", run_ffmpeg(flip.args.into_iter(), cli.test)?);
+        }
+
+        Tasks::Gif { start, end } => {
+            if ctx.inputs.inputs_type != InputType::File {
+                anyhow::bail!("input is not a file.");
+            }
+
+            let input = ctx.input();
+            let output = ctx.output("gif", "gif");
+
+            let gif = Gif::new()
+                .input(input)
+                .start(&start)
+                .end(&end)
+                .flags()
+                .output(&output);
+
+            println!("Converting a video to gif.");
+            println!("{}", run_ffmpeg(gif.args.into_iter(), cli.test)?);
         }
     }
 

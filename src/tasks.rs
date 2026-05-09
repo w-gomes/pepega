@@ -272,3 +272,48 @@ impl<'a> Flip<'a> {
         self
     }
 }
+
+pub struct Gif<'a> {
+    pub args: SmallVec<[&'a str; 16]>,
+}
+
+impl<'a> Gif<'a> {
+    pub fn new() -> Self {
+        Self {
+            args: SmallVec::new(),
+        }
+    }
+
+    pub fn input(mut self, path: &'a str) -> Self {
+        self.args.push("-i");
+        self.args.push(path);
+        self
+    }
+
+    pub fn start(mut self, start: &'a str) -> Self {
+        self.args.push("-ss");
+        self.args.push(start);
+        self
+    }
+
+    pub fn end(mut self, end: &'a str) -> Self {
+        self.args.push("-to");
+        self.args.push(end);
+        self
+    }
+
+    pub fn flags(mut self) -> Self {
+        self.args.extend_from_slice(&[
+            "-vf",
+            "fps=30,scale=1080:-1:flags=lanczos,split[s0][s1];[s0]palettegen[p];[s1][p]paletteuse",
+            "-loop",
+            "0",
+        ]);
+        self
+    }
+
+    pub fn output(mut self, output: &'a str) -> Self {
+        self.args.push(output);
+        self
+    }
+}

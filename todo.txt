@@ -1,14 +1,11 @@
-- Future ideas
+- Improvements
+
 Commands:
 * Clip
   At the moment we are copying video and audio streams as well as timestamp.
   Add an option to each stream or both. E.g. --reencode
 
 * Merge
-  At the moment we are multiple videos from the command line using -i flags.
-  It can be a bit tedious if we have a lot of videos.
-  Implement passing the directory and just merge everything in there that
-  has .mp4 or .mkv extensions.
 
 * Video
   Mostly complete. We should also check for images with different extensions.
@@ -22,7 +19,6 @@ Commands:
   with a given START and END.
 
 * Encode
-  Add option to rotate video clockwise or conterclockwise.
 
 * Filters
   What kinda of filters do we want though?
@@ -34,3 +30,22 @@ Commands:
                   background, foreground)
     Timeline Editing, enable filters with specific START and END
     Speed up at specific sections in the video, slow and fast motions.
+
+
+General:
+
+Improve auto output names:
+  After adding Optional output. The program picks a single default one for all Commands.
+  If we want to chain commands, the one after the first command will overwrite the first output file.
+  So, if we don't provide an output, we want to generate an output name based on the input command.
+  That way the names won't clash.
+
+  Add timestamp or UUID.
+
+
+Improve temporary folders:
+  Use a default temporary folder for commands like: merge and video.
+  The command creates a folder where the program is invoked.
+  Another way to solve this is: not create a temporary folder at all. Research a way to create a buffer and keep the file
+  content in this buffer.
+
