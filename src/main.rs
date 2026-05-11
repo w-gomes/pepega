@@ -5,13 +5,16 @@ use std::{
     process::{Command, Stdio},
 };
 
-use anyhow::{anyhow, Context};
+use anyhow::{anyhow, bail, Context, Result};
 use chrono::Local;
 use clap::{Parser, Subcommand, ValueEnum};
 use tempfile::TempDir;
 
 mod tasks;
+mod utils;
+
 use crate::tasks::{Audio, Clip, Encode, Flip, Gif, Merge, Remux, Upscale, Video, Youtube};
+use crate::utils::filters_for_merge;
 
 #[derive(Parser, Debug)]
 #[command(name = "pepega", about = "video and audio tool.", version)]
@@ -123,7 +126,7 @@ enum Encoders {
     AV1,
 }
 
-fn run_ffmpeg<'a, Iter>(args: Iter, test: bool) -> anyhow::Result<&'static str>
+fn run_ffmpeg<'a, Iter>(args: Iter, test: bool) -> Result<&'static str>
 where
     Iter: std::iter::IntoIterator<Item = &'a str> + std::fmt::Debug,
 {
@@ -136,7 +139,7 @@ where
 
         let output = ffmpeg.wait_with_output()?;
         if !output.status.success() {
-            anyhow::bail!(
+            bail!(
                 "-- Failed to execute ffmpeg. Error code: {:?} -- ",
                 output.status.code()
             );
@@ -149,7 +152,7 @@ where
 
         let output = ffmpeg.wait_with_output()?;
         if !output.status.success() {
-            anyhow::bail!(
+            bail!(
                 "-- Failed to execute ffmpeg. Error code: {:?} -- ",
                 output.status.code()
             );
@@ -158,7 +161,7 @@ where
     Ok("\nSuccessfully ran ffmpeg!")
 }
 
-#[derive(PartialEq)]
+#[derive(PartialEq, Copy, Clone)]
 enum InputType {
     Directory,
     File,
@@ -179,7 +182,7 @@ struct Ctx {
 }
 
 impl Ctx {
-    fn new(inputs: &[PathBuf], output: Option<PathBuf>) -> anyhow::Result<Self> {
+    fn new(inputs: &[PathBuf], output: Option<PathBuf>) -> Result<Self> {
         // Determine InputType.
         let inputs_type = if inputs[0].is_dir() {
             InputType::Directory
@@ -237,7 +240,7 @@ impl Ctx {
 }
 
 #[allow(clippy::too_many_lines)]
-fn main() -> anyhow::Result<()> {
+fn main() -> Result<()> {
     let cli = Cli::parse();
 
     let ctx = Ctx::new(&cli.inputs, cli.output)?;
@@ -245,7 +248,7 @@ fn main() -> anyhow::Result<()> {
     match cli.task {
         Tasks::Clip { start, end, encode } => {
             if ctx.inputs.inputs_type != InputType::File {
-                anyhow::bail!("Input is not a file.");
+                bail!("Input is not a file.");
             }
 
             let input = ctx.input();
@@ -262,65 +265,25 @@ fn main() -> anyhow::Result<()> {
             println!("{}", run_ffmpeg(clip.args.into_iter(), cli.test)?);
         }
         Tasks::Merge => {
-            let mut filters = String::new();
-            let mut new_inputs = Vec::new();
             let inputs = ctx.inputs();
 
-            // Check the input type and write the entries to the tmp file.
-            let inputs = match ctx.inputs.inputs_type {
-                // It's multiple files, apply the filters.
-                InputType::File => {
-                    if inputs.len() < 2 {
-                        anyhow::bail!("Not enough inputs");
-                    }
+            match filters_for_merge(inputs.to_vec(), ctx.inputs.inputs_type) {
+                Ok((inputs, filters)) => {
+                    let output = ctx.output("merge", "mp4");
+                    let merge = Merge::new()
+                        .inputs(&inputs)
+                        .filters(&filters)
+                        .output(&output);
 
-                    let total_inputs = inputs.len();
-                    for input in 0..total_inputs {
-                        filters.push_str(format!("[{input}:v:0][{input}:a:0]").as_str());
-                    }
-                    filters.push_str(format!("concat=n={total_inputs}:v=1:a=1[v][a]").as_str());
-
-                    inputs
+                    println!("Merging {} videos.", inputs.len());
+                    println!("{}", run_ffmpeg(merge.args.into_iter(), cli.test)?);
                 }
-                // It's a single directory, we iterator over that and read
-                // each entry checking if they end with mp4 or mkv and write their
-                // absolute path to a file
-                InputType::Directory => {
-                    // We use PathBuf to iterate the directory.
-                    let input_path = PathBuf::from(inputs[0].clone());
-
-                    let mut idx = 0;
-                    for entry in input_path.read_dir()?.flatten() {
-                        let entry_path = entry.path();
-                        let entry_path_str = entry_path.to_str().with_context(|| {
-                            format!("Failed to convert {} to &str.", entry_path.display())
-                        })?;
-                        if entry_path_str.ends_with("mkv") || entry_path_str.ends_with("mp4") {
-                            new_inputs.push(entry_path_str.to_string());
-                        }
-
-                        filters.push_str(format!("[{idx}:v:0][{idx}:a:0]").as_str());
-                        idx += 1;
-                    }
-                    filters.push_str(format!("concat=n={idx}:v=1:a=1[v][a]").as_str());
-
-                    &new_inputs
-                }
-            };
-
-            let output = ctx.output("merge", "mp4");
-
-            let merge = Merge::new()
-                .inputs(inputs)
-                .filters(&filters)
-                .output(&output);
-
-            println!("Merging {} videos.", inputs.len());
-            println!("{}", run_ffmpeg(merge.args.into_iter(), cli.test)?);
+                Err(e) => return Err(e),
+            }
         }
         Tasks::Video { framerate } => {
             if ctx.inputs.inputs_type != InputType::Directory {
-                anyhow::bail!("input is not a directory.");
+                bail!("input is not a directory.");
             }
 
             // Creates a temporary dir and a file
@@ -358,7 +321,7 @@ fn main() -> anyhow::Result<()> {
         }
         Tasks::Audio => {
             if ctx.inputs.inputs_type != InputType::File {
-                anyhow::bail!("Input is not a file.");
+                bail!("Input is not a file.");
             }
 
             let input = ctx.input();
@@ -370,7 +333,7 @@ fn main() -> anyhow::Result<()> {
         }
         Tasks::Encode { encoders, crf } => {
             if ctx.inputs.inputs_type != InputType::File {
-                anyhow::bail!("Input is not a file.");
+                bail!("Input is not a file.");
             }
 
             let input = ctx.input();
@@ -387,7 +350,7 @@ fn main() -> anyhow::Result<()> {
         }
         Tasks::Youtube => {
             if ctx.inputs.inputs_type != InputType::File {
-                anyhow::bail!("Input is not a file.");
+                bail!("Input is not a file.");
             }
 
             let input = ctx.input();
@@ -399,7 +362,7 @@ fn main() -> anyhow::Result<()> {
         }
         Tasks::Upscale => {
             if ctx.inputs.inputs_type != InputType::File {
-                anyhow::bail!("input is not a file.");
+                bail!("input is not a file.");
             }
 
             let input = ctx.input();
@@ -412,7 +375,7 @@ fn main() -> anyhow::Result<()> {
         }
         Tasks::Flip => {
             if ctx.inputs.inputs_type != InputType::File {
-                anyhow::bail!("input is not a file.");
+                bail!("input is not a file.");
             }
 
             let input = ctx.input();
@@ -426,7 +389,7 @@ fn main() -> anyhow::Result<()> {
 
         Tasks::Gif { start, end } => {
             if ctx.inputs.inputs_type != InputType::File {
-                anyhow::bail!("input is not a file.");
+                bail!("input is not a file.");
             }
 
             let input = ctx.input();
@@ -445,7 +408,7 @@ fn main() -> anyhow::Result<()> {
 
         Tasks::Remux { encode } => {
             if ctx.inputs.inputs_type != InputType::File {
-                anyhow::bail!("input is not a file.");
+                bail!("input is not a file.");
             }
 
             let input = ctx.input();
