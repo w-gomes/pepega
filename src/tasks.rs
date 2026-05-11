@@ -31,16 +31,6 @@ impl<'a> Clip<'a> {
         self
     }
 
-    pub fn encode(mut self, should_encode: bool) -> Self {
-        if should_encode {
-            self.args
-                .extend_from_slice(&["-c:v", "libx264", "-c:a", "aac"]);
-        } else {
-            self.args.extend_from_slice(&["-c", "copy", "-copyts"]);
-        }
-        self
-    }
-
     pub fn output(mut self, output: &'a str) -> Self {
         self.args.push(output);
         self

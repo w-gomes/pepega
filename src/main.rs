@@ -36,8 +36,8 @@ struct Cli {
 #[derive(Subcommand, Debug)]
 enum Tasks {
     /// Creates a clip of a video with START and END times.
-    /// All streams and timestamps are copied by default.
-    /// You can reencode with --encode flag.
+    /// All streams and timestamps are copied.
+    /// You want to use the Encode subcommand after.
     Clip {
         /// Start time of the clip (e.g. "00:01:30.000" for 1 minute 30 seconds.
         #[arg(help = "Start time of the clip.")]
@@ -46,10 +46,6 @@ enum Tasks {
         /// End time of the clip (e.g. "00:02:00.000")
         #[arg(help = "End time of the clip.")]
         end: String,
-
-        /// Reencode the clip.
-        #[arg(short, long, help = "Reencode the clip using h264 encoder.")]
-        encode: bool,
     },
 
     /// Merges two or more videos.
@@ -243,7 +239,7 @@ fn main() -> Result<()> {
     let ctx = Ctx::new(&cli.inputs, cli.output)?;
 
     match cli.task {
-        Tasks::Clip { start, end, encode } => {
+        Tasks::Clip { start, end } => {
             if ctx.inputs.inputs_type != InputType::File {
                 bail!("Input is not a file.");
             }
@@ -255,7 +251,6 @@ fn main() -> Result<()> {
                 .start(&start)
                 .input(input)
                 .end(&end)
-                .encode(encode)
                 .output(&output);
 
             println!("Creating a clip.");
