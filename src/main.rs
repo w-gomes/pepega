@@ -1,20 +1,17 @@
 use std::{
-    fs::{self, File},
-    io::Write,
-    path::PathBuf,
+    path::{Path, PathBuf},
     process::{Command, Stdio},
 };
 
 use anyhow::{anyhow, bail, Context, Result};
 use chrono::Local;
 use clap::{Parser, Subcommand, ValueEnum};
-use tempfile::TempDir;
 
 mod tasks;
 mod utils;
 
 use crate::tasks::{Audio, Clip, Encode, Flip, Gif, Merge, Remux, Upscale, Video, Youtube};
-use crate::utils::filters_for_merge;
+use crate::utils::{filters_for_merge, tmp_list_for_video};
 
 #[derive(Parser, Debug)]
 #[command(name = "pepega", about = "video and audio tool.", version)]
@@ -286,34 +283,11 @@ fn main() -> Result<()> {
                 bail!("input is not a directory.");
             }
 
-            // Creates a temporary dir and a file
-            let tmp_dir = TempDir::new_in(".")?;
-            let tmp_list = tmp_dir.path().join("tmp_list.txt");
-            let mut tmp_list_file = File::create(&tmp_list)?;
+            let path = Path::new(&ctx.inputs.inputs[0]);
+            let (_tmp_dir, tmp_list, total_images) = tmp_list_for_video(path, framerate)?;
 
-            let mut total_images = 0;
-
-            let source_dir = PathBuf::from(&ctx.inputs.inputs[0]);
-            for entry in source_dir.read_dir()?.flatten() {
-                let entry_path = entry.path();
-                let entry_path_absolute = fs::canonicalize(&entry_path).with_context(|| {
-                    format!("Failed to get absolute path of {}", entry_path.display())
-                })?;
-                let entry_path_str = entry_path_absolute.to_str().with_context(|| {
-                    format!(
-                        "Failed to convert {} to &str.",
-                        entry_path_absolute.display()
-                    )
-                })?;
-                if entry_path_str.ends_with("png") || entry_path_str.ends_with("jpg") {
-                    writeln!(tmp_list_file, "file '{entry_path_str}'")?;
-                    writeln!(tmp_list_file, "duration {framerate}")?;
-                    total_images += 1;
-                }
-            }
-
-            let output = ctx.output("video_from_images", "mp4");
             let input = tmp_list.to_str().context("Failed to convert to &str.")?;
+            let output = ctx.output("video_from_images", "mp4");
 
             let video = Video::new().input(input).output(&output);
             println!("Creating a video from {total_images} images.");

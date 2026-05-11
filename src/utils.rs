@@ -60,8 +60,8 @@ pub fn filters_for_merge(
     }
 }
 
-pub fn tmp_list_for_video(src: &Path, framerate: i16) -> Result<(PathBuf, usize)> {
-    // Creates a temporary dir and a file
+// Creates a temporary dir and a temporary file
+pub fn tmp_list_for_video(src: &Path, framerate: i16) -> Result<(TempDir, PathBuf, usize)> {
     let tmp_dir = TempDir::new_in(".")?;
     let tmp_list = tmp_dir.path().join("tmp_list.txt");
     let mut tmp_list_file = File::create(&tmp_list)?;
@@ -86,5 +86,5 @@ pub fn tmp_list_for_video(src: &Path, framerate: i16) -> Result<(PathBuf, usize)
         }
     }
 
-    Ok((tmp_list, total_images))
+    Ok((tmp_dir, tmp_list, total_images))
 }
