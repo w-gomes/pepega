@@ -28,6 +28,7 @@ impl<'a> Clip<'a> {
     pub fn end(mut self, end: &'a str) -> Self {
         self.args.push("-to");
         self.args.push(end);
+        self.args.extend_from_slice(&["-c", "copy", "-copyts"]);
         self
     }
 
