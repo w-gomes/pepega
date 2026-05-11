@@ -11,7 +11,7 @@ use clap::{Parser, Subcommand, ValueEnum};
 use tempfile::TempDir;
 
 mod tasks;
-use crate::tasks::{Audio, Clip, Encode, Flip, Gif, Merge, Upscale, Video, Youtube};
+use crate::tasks::{Audio, Clip, Encode, Flip, Gif, Merge, Remux, Upscale, Video, Youtube};
 
 #[derive(Parser, Debug)]
 #[command(name = "pepega", about = "video and audio tool.", version)]
@@ -104,6 +104,14 @@ enum Tasks {
         /// End time of the video (e.g. "00:02:00.000")
         #[arg(help = "End time of the clip.")]
         end: String,
+    },
+
+    /// Convert to a different format. E.g. mkv -> mp4
+    /// Defaults to copy the media streams. Otherwise, it will reencode.
+    /// Reencoding is similar to ffmpeg -i input.mkv output.mp4
+    Remux {
+        #[arg(short, long, help = "Reencode the output using h264 encoder.")]
+        encode: bool,
     },
 }
 
@@ -433,6 +441,20 @@ fn main() -> anyhow::Result<()> {
 
             println!("Converting a video to gif.");
             println!("{}", run_ffmpeg(gif.args.into_iter(), cli.test)?);
+        }
+
+        Tasks::Remux { encode } => {
+            if ctx.inputs.inputs_type != InputType::File {
+                anyhow::bail!("input is not a file.");
+            }
+
+            let input = ctx.input();
+            let output = ctx.output("remux", "mp4");
+
+            let remux = Remux::new().input(input).encode(encode).output(&output);
+
+            println!("Converting a media format.");
+            println!("{}", run_ffmpeg(remux.args.into_iter(), cli.test)?);
         }
     }
 

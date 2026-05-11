@@ -313,3 +313,33 @@ impl<'a> Gif<'a> {
         self
     }
 }
+
+pub struct Remux<'a> {
+    pub args: SmallVec<[&'a str; 16]>,
+}
+
+impl<'a> Remux<'a> {
+    pub fn new() -> Self {
+        Self {
+            args: SmallVec::new(),
+        }
+    }
+
+    pub fn input(mut self, path: &'a str) -> Self {
+        self.args.push("-i");
+        self.args.push(path);
+        self
+    }
+
+    pub fn encode(mut self, should_encode: bool) -> Self {
+        if !should_encode {
+            self.args.extend_from_slice(&["-c", "copy"]);
+        }
+        self
+    }
+
+    pub fn output(mut self, output: &'a str) -> Self {
+        self.args.push(output);
+        self
+    }
+}
