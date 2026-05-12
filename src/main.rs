@@ -16,7 +16,7 @@ use crate::utils::{filters_for_merge, tmp_list_for_video};
 #[derive(Parser, Debug)]
 #[command(name = "pepega", about = "video and audio tool.", version)]
 struct Cli {
-    /// A list of tasks to choose to operate on the input.
+    /// A list of tasks to choose from to operate on the inputs.
     #[command(subcommand)]
     task: Tasks,
 
@@ -28,90 +28,77 @@ struct Cli {
     #[arg(short, long)]
     output: Option<PathBuf>,
 
-    /// Prints args sent to ffmpeg.
+    /// Only print the args what sent to ffmpeg.
     #[arg(long)]
     test: bool,
 }
 
 #[derive(Subcommand, Debug)]
 enum Tasks {
-    /// Creates a clip of a video with START and END times.
-    /// All streams and timestamps are copied.
-    /// You want to use the Encode subcommand after.
+    /// Trim a video with START and END timestamps. All streams are copied without re-encoding.
+    /// Run the `encode` subcommand on the output file afterward to re-encode.
     Clip {
-        /// Start time of the clip (e.g. "00:01:30.000" for 1 minute 30 seconds.
-        #[arg(help = "Start time of the clip.")]
+        #[arg(help = "Start of the clip.")]
         start: String,
 
-        /// End time of the clip (e.g. "00:02:00.000")
-        #[arg(help = "End time of the clip.")]
+        #[arg(help = "End of the clip.")]
         end: String,
     },
 
-    /// Merges two or more videos.
+    /// Merge two or more videos into one.
     Merge,
 
-    /// Creates a video from images.
-    /// By default, each image will be displayed for 5 seconds.
+    /// Create a video slideshow from images. Each image is displayed for 5 seconds by default.
     Video {
-        /// This duration can be changed with FRAMERATE option.
-        /// Must be between 1 and 10.
+        /// Set a custom framerate, between 1 and 10.
         #[arg(short, long, value_name = "FRAMERATE", default_value_t = 5, value_parser = clap::value_parser!(i16).range(1..=10))]
         framerate: i16,
     },
 
-    /// Extracts the audio stream from a video.
+    /// Extract the audio stream from a video.
     Audio,
 
-    /// Encodes a video with three differents encoders: H264, H265 and AV1.
+    /// Encode a video using H264, H265, or AV1 encoders.
     Encode {
-        /// Choose the encoder.
-        #[arg(short, long, value_enum, help = "Select the video encoder (H264, H265, AV1).", default_value_t = Encoders::H264)]
+        /// Set the encode.
+        #[arg(short, long, value_enum, help = "Set the video encoder (H264, H265, AV1).", default_value_t = Encoders::H264)]
         encoders: Encoders,
 
-        /// Constant Rate Factor (CRF) for the H.264 encoder.
-        /// A lower value means higher quality. Valid range: 0-51.
-        /// Defaults to 23. This option is only applicable for the H264 encoder.
+        /// Set the Constant Rate Factor (CRF) for the H.264 encoder ONLY.
+        /// A lower value means higher quality, between 0 and 51.
         #[arg(short, long, value_name = "CRF", default_value_t = 23, value_parser = clap::value_parser!(i16).range(1..=51))]
-        /// This option's used for x264 encoder. Defaults to 23.
-        /// This value can be changed with CRF option, BETWEEN 0 and 51.
         crf: i16,
     },
 
-    /// Encodes a video with options specifically for `YouTube`.
+    /// Encode a video with settings optimized for `YouTube`.
     Youtube,
 
-    /// Upscales a video for higher peak quality on platforms like `YouTube`.
+    /// Upscale a video for higher peak quality on platforms like `YouTube`.
     /// Uses `FFmpeg`'s recommended settings for upscalling.
-    /// `<https://trac.ffmpeg.org/wiki/Encode/YouTube#Upscalingvideoforhigherpeakquality>`
+    /// See for more detail `<https://trac.ffmpeg.org/wiki/Encode/YouTube#Upscalingvideoforhigherpeakquality>`
     Upscale,
 
-    /// Flips a video clockwise.
+    /// Rotate a video 90 degrees clockwise.
     Flip,
 
-    /// Creates a gif of a video with START and END times.
-    /// You probably do not want very long gif, because the size of output
-    /// file is large, even for a short gif.
+    /// Create a `GIF` from a video with START and END timestamps. Note: `GIF` files are large even for short clips.
     Gif {
-        /// Start time of the video (e.g. "00:01:30.000" for 1 minute 30 seconds.
-        #[arg(help = "Start time of the clip.")]
+        #[arg(help = "Start of the gif.")]
         start: String,
 
-        /// End time of the video (e.g. "00:02:00.000")
-        #[arg(help = "End time of the clip.")]
+        #[arg(help = "End of the gif.")]
         end: String,
     },
 
-    /// Convert to a different format. E.g. mkv -> mp4
-    /// Defaults to copy the media streams. Otherwise, it will reencode.
-    /// Reencoding is similar to ffmpeg -i input.mkv output.mp4
+    /// Convert to a different format. (e.g. mkv -> mp4) Media streams are copied by default.
+    /// Use --encode to re-encode.
     Remux {
         #[arg(short, long, help = "Reencode the output using h264 encoder.")]
+        /// Re-encoding is similar to `ffmpeg -i input.mkv output.mp4`
         encode: bool,
     },
 }
 
-// TODO: Why do we need Clone here?
 #[derive(ValueEnum, Debug, Clone, Copy)]
 enum Encoders {
     H264,
