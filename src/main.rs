@@ -35,7 +35,7 @@ struct Cli {
 
 #[derive(Subcommand, Debug)]
 enum Tasks {
-    /// Trim a video with START and END timestamps. All streams are copied without re-encoding.
+    /// Clip a video with START and END timestamps. All streams are copied without re-encoding.
     /// Run the `encode` subcommand on the output file afterward to re-encode.
     Clip {
         #[arg(help = "Start of the clip.")]
