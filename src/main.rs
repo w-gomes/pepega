@@ -243,6 +243,7 @@ fn main() -> Result<()> {
             println!("Creating a clip.");
             println!("{}", run_ffmpeg(clip.args.into_iter(), cli.test)?);
         }
+
         Tasks::Merge => {
             let inputs = ctx.inputs();
 
@@ -260,6 +261,7 @@ fn main() -> Result<()> {
                 Err(e) => return Err(e),
             }
         }
+
         Tasks::Video { framerate } => {
             if ctx.inputs.inputs_type != InputType::Directory {
                 bail!("input is not a directory.");
@@ -275,6 +277,7 @@ fn main() -> Result<()> {
             println!("Creating a video from {total_images} images.");
             println!("{}", run_ffmpeg(video.args.into_iter(), cli.test)?);
         }
+
         Tasks::Audio => {
             if ctx.inputs.inputs_type != InputType::File {
                 bail!("Input is not a file.");
@@ -287,6 +290,7 @@ fn main() -> Result<()> {
             println!("Extracting a audio.");
             println!("{}", run_ffmpeg(audio.args.into_iter(), cli.test)?);
         }
+
         Tasks::Encode { encoders, crf } => {
             if ctx.inputs.inputs_type != InputType::File {
                 bail!("Input is not a file.");
@@ -304,6 +308,7 @@ fn main() -> Result<()> {
             println!("Encoding a video.");
             println!("{}", run_ffmpeg(encode.args.into_iter(), cli.test)?);
         }
+
         Tasks::Youtube => {
             if ctx.inputs.inputs_type != InputType::File {
                 bail!("Input is not a file.");
@@ -316,6 +321,7 @@ fn main() -> Result<()> {
             println!("Encoding a video for youtube.");
             println!("{}", run_ffmpeg(youtube.args.into_iter(), cli.test)?);
         }
+
         Tasks::Upscale => {
             if ctx.inputs.inputs_type != InputType::File {
                 bail!("input is not a file.");
@@ -329,6 +335,7 @@ fn main() -> Result<()> {
             println!("Upscaling a video.");
             println!("{}", run_ffmpeg(upscale.args.into_iter(), cli.test)?);
         }
+
         Tasks::Flip => {
             if ctx.inputs.inputs_type != InputType::File {
                 bail!("input is not a file.");
