@@ -203,19 +203,19 @@ impl Ctx {
         &self.inputs.inputs[0]
     }
 
-    fn output(&self, command: &str, extension: &str) -> String {
+    fn output(&self, task: &str, extension: &str) -> String {
         self.output
             .output
             .as_ref()
-            .map_or_else(|| Self::generate_output(command, extension), String::clone)
+            .map_or_else(|| Self::generate_output(task, extension), String::clone)
     }
 
-    fn generate_output(command: &str, extension: &str) -> String {
+    fn generate_output(task: &str, extension: &str) -> String {
         let now = Local::now();
 
         let timestamp = now.format("%Y%m%d_%H%M%S").to_string();
 
-        format!("{command}_{timestamp}.{extension}")
+        format!("{task}_{timestamp}.{extension}")
     }
 }
 
