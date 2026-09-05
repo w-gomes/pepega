@@ -43,18 +43,21 @@ pub fn filters_for_merge(
             let mut idx = 0;
             for entry in input_path.read_dir()?.flatten() {
                 let entry_path = entry.path();
-                let entry_path_str = entry_path.to_str().with_context(|| {
-                    format!("Failed to convert {} to &str.", entry_path.display())
-                })?;
-                if entry_path_str.ends_with("mkv") || entry_path_str.ends_with("mp4") {
-                    new_inputs.push(entry_path_str.to_string());
-                }
 
-                filters.push_str(format!("[{idx}:v:0][{idx}:a:0]").as_str());
-                idx += 1;
+                if let Some(ext) = entry_path.extension() {
+                    if let Some(ext) = ext.to_str() {
+                        if ext == "mp4" || ext == "mkv" {
+                            new_inputs.push(entry_path.display().to_string());
+                            filters.push_str(format!("[{idx}:v:0][{idx}:a:0]").as_str());
+                            idx += 1;
+                        }
+                    }
+                }
             }
             filters.push_str(format!("concat=n={idx}:v=1:a=1[v][a]").as_str());
 
+            // FIXME: Assuming there are at least two videos in the folder to merge.
+            // Add an error for this.
             Ok((new_inputs, filters))
         }
     }
