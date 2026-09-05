@@ -76,16 +76,15 @@ pub fn tmp_list_for_video(src: &Path, framerate: i16) -> Result<(TempDir, PathBu
         let entry_path = entry.path();
         let entry_path_absolute = fs::canonicalize(&entry_path)
             .with_context(|| format!("Failed to get absolute path of {}", entry_path.display()))?;
-        let entry_path_str = entry_path_absolute.to_str().with_context(|| {
-            format!(
-                "Failed to convert {} to &str.",
-                entry_path_absolute.display()
-            )
-        })?;
-        if entry_path_str.ends_with("png") || entry_path_str.ends_with("jpg") {
-            writeln!(tmp_list_file, "file '{entry_path_str}'")?;
-            writeln!(tmp_list_file, "duration {framerate}")?;
-            total_images += 1;
+
+        if let Some(ext) = entry_path_absolute.extension() {
+            if let Some(ext) = ext.to_str() {
+                if ext == "png" || ext == "jpg" {
+                    writeln!(tmp_list_file, "file '{}'", entry_path_absolute.display())?;
+                    writeln!(tmp_list_file, "duration {framerate}")?;
+                    total_images += 1;
+                }
+            }
         }
     }
 
