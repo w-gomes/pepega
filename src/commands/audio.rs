@@ -1,58 +1,73 @@
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 
-use anyhow::{Context, Result};
-use smallvec::SmallVec;
+use anyhow::{bail, Result};
+use chrono::Local;
+use log::info;
 
-use crate::InOutOption;
+use crate::args::AudioCodec;
+use crate::ffmpeg::FFmpeg;
 
-pub struct Audio<'a> {
-    pub args: SmallVec<[&'a str; 16]>,
+pub struct Audio {
+    pub args: Vec<String>,
+    pub dry: bool,
 }
 
-impl<'a> Audio<'a> {
-    pub fn new(in_out: InOutOption) -> Result<Self> {
-        let (inputs, outputs) = in_out.split();
+impl FFmpeg for Audio {
+    fn args(&self) -> &[String] {
+        self.args.as_slice()
+    }
+}
 
-        if inputs.len() > 1 {
-            println!(
-                "WARN: More than one input entered, skipping [{}]. Taking only the last one.",
-                inputs.len() - 1
-            );
+impl Audio {
+    pub fn new_with(
+        input: &Path,
+        output: Option<PathBuf>,
+        audio_codec: &AudioCodec,
+        dry: bool,
+    ) -> Result<Self> {
+        if !input.is_file() {
+            bail!("Input must be a file");
         }
-        let input = inputs.pop()?.context("Error taking input");
 
-        // TODO:
-        // Check if outputs is_some()
-        // Some(outputs) => check if outputs.len() == inputs.len()
-        //                        if true continue
-        //                        else warn, we only need 1 input for audio
-        // None => generate a name based off input
-        //         e.g.:
-        //         let input = "helloworld.mp4"
-        //         let output = format!("OUT_{input}_audio.mp3");
-        // NOTE: we should pick the handle the extension instead
-        //       of hard-coding in the format!
-
-        let output = if let Some(outputs) = outputs {
-            if outputs.len() > 1 {
-                println!(
-                    "More than one output entered, skipping... [{}]",
-                    outputs.len() - 1
-                );
-            }
-            outputs.pop()
+        let output = if let Some(output) = output {
+            output
         } else {
-            let output = PathBuf::new();
-            output.push(format!("OUT_{}_audio", input.clone()));
+            let input_clone = input.to_path_buf();
+            let Some(file_name) = input_clone.file_name() else {
+                bail!("Error extracting file name from Input");
+            };
+
+            // Convert OsStr to &str to pass to format!
+            let Some(file_name) = file_name.to_str() else {
+                bail!("Error converting OsStr to &str");
+            };
+
+            let now = Local::now();
+            let timestamp = now.format("%Y%m%d_%H%M%S").to_string();
+            let file_name = format!("AUDIO_FROM_{file_name}_{timestamp}");
+
+            let output = Path::new(&input_clone)
+                .with_file_name(file_name)
+                .with_extension("mp3");
             output
         };
 
-        Ok(Self {
-            args: SmallVec::new(),
-        })
+        let mut args = Vec::new();
+        args.extend_from_slice(&["-i".to_string(), input.display().to_string()]);
+        args.extend_from_slice(&["-vn".to_string(), "-c:a".to_string()]);
+        args.push(audio_codec.to_string());
+        args.extend_from_slice(&["-b:a".to_string(), "192k".to_string()]);
+        args.push(output.display().to_string());
+
+        Ok(Self { args, dry })
     }
 
-    pub fn run(self) {
-        todo!();
+    pub fn run(&self) -> Result<()> {
+        if self.dry {
+            self.dry();
+        } else {
+            self.ffmpeg()?;
+        }
+        Ok(())
     }
 }
