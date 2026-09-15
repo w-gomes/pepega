@@ -2,27 +2,29 @@ use std::path::{Path, PathBuf};
 
 use anyhow::{bail, Result};
 use chrono::Local;
-use log::info;
 
-use crate::args::AudioCodec;
+use crate::args::EncodeOption;
 use crate::ffmpeg::FFmpeg;
 
-pub struct Audio {
+pub struct Clip {
     pub args: Vec<String>,
     pub dry: bool,
 }
 
-impl FFmpeg for Audio {
+impl FFmpeg for Clip {
     fn args(&self) -> &[String] {
         self.args.as_slice()
     }
 }
 
-impl Audio {
+impl Clip {
     pub fn new_with(
         input: &Path,
         output: Option<PathBuf>,
-        audio_codec: &AudioCodec,
+        start: &str,
+        end: &str,
+        encode_option: Option<EncodeOption>,
+        gif: bool,
         dry: bool,
     ) -> Result<Self> {
         if !input.is_file() {
@@ -44,20 +46,15 @@ impl Audio {
 
             let now = Local::now();
             let timestamp = now.format("%Y%m%d_%H%M%S").to_string();
-            let file_name = format!("AUDIO_FROM_{file_name}_{timestamp}");
+            let file_name = format!("CLIP_FROM_{file_name}_{timestamp}");
 
             let output = Path::new(&input_clone)
                 .with_file_name(file_name)
-                .with_extension("mp3");
+                .with_extension("mp4");
             output
         };
 
         let mut args = Vec::new();
-        args.extend_from_slice(&["-i".to_string(), input.display().to_string()]);
-        args.extend_from_slice(&["-vn".to_string(), "-c:a".to_string()]);
-        args.push(audio_codec.to_string());
-        args.extend_from_slice(&["-b:a".to_string(), "192k".to_string()]);
-        args.push(output.display().to_string());
 
         Ok(Self { args, dry })
     }
