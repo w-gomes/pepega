@@ -11,8 +11,8 @@ use clap::{Args, Parser, Subcommand, ValueEnum};
     max_term_width = 80
 )]
 pub struct Opts {
-    /// Only print actions, without running ffmpeg
-    #[arg(long, default_value_t = false)]
+    /// Don't do anything, only print the arguments without running `FFmpeg`
+    #[arg(long, aliases = ["dry", "test"], default_value_t = false, global = true)]
     pub dry_run: bool,
 
     /// Input: either a single file or a directory
@@ -39,12 +39,8 @@ pub enum Commands {
 #[derive(Args, Debug)]
 pub struct AudioArgs {
     /// Audio codec options
-    #[arg(short = 'A', long, value_enum, default_value_t = AudioCodec::Aac)]
+    #[arg(short = 'A', long, value_enum, default_value_t = AudioCodec::Mp3)]
     pub audio_codec: AudioCodec,
-
-    /// Audio format options
-    #[arg(short = 'F', long, value_enum, default_value_t = AudioFormat::Mp3)]
-    pub audio_format: AudioFormat,
 }
 
 #[derive(Args, Debug)]
@@ -171,14 +167,11 @@ pub enum AudioCodec {
     /// `aac` Adcanced Audio Coding codec
     #[strum(to_string = "aac")]
     Aac,
-    /// `flac` Free Lossless Audio codec
-    #[strum(to_string = "flac")]
-    Flac,
     /// `mp3` MP3 codec
     #[strum(to_string = "mp3")]
     Mp3,
     /// `libopus` Opus codec
-    #[strum(to_string = "opus")]
+    #[strum(to_string = "libopus")]
     Opus,
 }
 
@@ -188,14 +181,6 @@ pub enum VideoFormat {
     Mp4,
     #[strum(to_string = "mkv")]
     Mkv,
-}
-
-#[derive(ValueEnum, Debug, Clone, strum::Display)]
-pub enum AudioFormat {
-    #[strum(to_string = "mp3")]
-    Mp3,
-    #[strum(to_string = "wav")]
-    Wav,
 }
 
 #[test]

@@ -1,6 +1,6 @@
 use std::process::{Command, Stdio};
 
-use anyhow::{bail, Result};
+use anyhow::{anyhow, Result};
 
 pub fn ffmpeg<'a, Iter>(args: Iter) -> Result<()>
 where
@@ -13,10 +13,10 @@ where
 
     let output = ffmpeg.wait_with_output()?;
     if !output.status.success() {
-        bail!(
-            "-- Failed to execute FFmpeg. --\n-- Error code: --\n{:?}",
+        return Err(anyhow!(
+            "-- Failed to execute FFmpeg.\n\t[ Error code: {:?} ]",
             output.status.code()
-        );
+        ));
     }
 
     Ok(())
