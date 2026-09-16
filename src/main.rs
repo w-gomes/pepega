@@ -5,7 +5,6 @@ mod args;
 mod commands;
 mod ffmpeg;
 
-use crate::args::Commands::{Audio, Video};
 use crate::args::{AudioArgs, Commands, Opts, VideoArgs};
 use crate::commands::{audio, clip};
 
@@ -18,16 +17,13 @@ fn main() -> Result<()> {
     let opts = Opts::parse();
 
     match opts.commands {
-        Audio(AudioArgs {
-            audio_codec,
-            audio_format,
-        }) => {
-            if let Err(error) = audio(&opts.input, opts.output, audio_codec, audio_format) {
+        Commands::Audio(AudioArgs { audio_codec }) => {
+            if let Err(error) = audio(opts.dry_run, &opts.input, opts.output, audio_codec) {
                 eprintln!("{error}");
             }
         }
 
-        Video(VideoArgs {
+        Commands::Video(VideoArgs {
             flip,
             encode_opt,
             youtube,
