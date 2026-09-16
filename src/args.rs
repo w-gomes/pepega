@@ -2,13 +2,26 @@ use std::path::PathBuf;
 
 use clap::{Args, Parser, Subcommand, ValueEnum};
 
-/// A command line tool to encode videos with the most common options using `FFmpeg`.
 #[derive(Parser, Debug)]
-#[command(version, author)]
-pub struct Cli {
+#[command(
+    name = "pepega",
+    version,
+    author,
+    about = "A command line wrapper for common `FFmpeg` tasks.",
+    max_term_width = 80
+)]
+pub struct Opts {
     /// Only print actions, without running ffmpeg
     #[arg(long, default_value_t = false)]
-    pub dry: bool,
+    pub dry_run: bool,
+
+    /// Input: either a single file or a directory
+    #[arg(short, long)]
+    pub input: PathBuf,
+
+    /// Output file
+    #[arg(short, long)]
+    pub output: Option<PathBuf>,
 
     #[command(subcommand)]
     pub commands: Commands,
@@ -16,111 +29,125 @@ pub struct Cli {
 
 #[derive(Subcommand, Debug)]
 pub enum Commands {
-    /// Extract the audio stream of a video
-    Audio {
-        /// Input
-        input: PathBuf,
+    /// Extract the audio stream from a video file.
+    Audio(AudioArgs),
 
-        /// Output
-        output: Option<PathBuf>,
+    /// Common tasks on video.
+    Video(VideoArgs),
+}
 
-        /// Encode the ouput instead of copying stream from input
-        #[arg(long, default_value_t = AudioCodec::Mp3)]
-        audio_codec: AudioCodec,
-    },
+#[derive(Args, Debug)]
+pub struct AudioArgs {
+    /// Audio codec options
+    #[arg(short = 'A', long, value_enum, default_value_t = AudioCodec::Aac)]
+    pub audio_codec: AudioCodec,
 
-    /// Clip a video.
-    /// Both the audio and video streams are copied by default
-    #[command(aliases = ["trim"])]
+    /// Audio format options
+    #[arg(short = 'F', long, value_enum, default_value_t = AudioFormat::Mp3)]
+    pub audio_format: AudioFormat,
+}
+
+#[derive(Args, Debug)]
+pub struct VideoArgs {
+    /// Flip (rotate) video clockwise 90 degrees
+    #[arg(
+        short,
+        long,
+        alias = "rotate",
+        default_value_t = false,
+        conflicts_with_all = ["youtube", "upscale"]
+    )]
+    pub flip: bool,
+
+    /// Encoding options
+    #[command(flatten)]
+    pub encode_opt: EncodeOpt,
+
+    /// Transcode optimized for `Youtube`
+    #[arg(short = 'Y', long, default_value_t = false, conflicts_with = "upscale")]
+    pub youtube: bool,
+
+    /// Upscale and transcode video for higher peak quality on platforms like `Youtube`.
+    /// Uses `FFmpeg`'s recommended settings for upscalling
+    ///
+    /// See for more detail `<https://trac.ffmpeg.org/wiki/Encode/YouTube#Upscalingvideoforhigherpeakquality>`
+    #[arg(short = 'U', long, default_value_t = false, conflicts_with = "youtube")]
+    pub upscale: bool,
+
+    /// Extra options for video
+    #[command(subcommand)]
+    pub video_cmd: VideoCmd,
+}
+
+#[derive(Subcommand, Debug)]
+pub enum VideoCmd {
+    /// Clip (trim) a video with START and END timestamps
+    #[command(alias = "trim")]
     Clip {
-        /// Input
-        input: PathBuf,
-
-        /// Output
-        output: Option<PathBuf>,
-
-        /// The START of the clip.
+        /// The start of the clip
         start: String,
-        /// The END of the clip.
+
+        /// The end of the clip
         end: String,
 
-        /// Saves output as `GIF`.
-        /// Note: `GIF` files are large even for short clips.
+        /// Output as `GIF`
+        /// Note: `GIF` file is large even for short clips.
         #[arg(long, default_value_t = false)]
         gif: bool,
-
-        /// Encode options for encoding
-        #[command(flatten)]
-        encode_option: Option<EncodeOption>,
     },
 
-    /// Encode
-    Encode {
-        /// Encode options for encoding
-        #[command(flatten)]
-        encode_option: EncodeOption,
+    /// Merge two or more videos
+    #[command(alias = "concat")]
+    Merge,
 
-        /// Constant Rate Factor (CRF):
-        /// 0 is lossless, 51 is the worst quality possible.
-        #[arg(long,
-              value_name = "CRF",
-              default_value_t = 23,
-              value_parser = clap::value_parser!(u64).range(0..=51),
-              conflicts_with = "cq"
-        )]
-        crf: u64,
-
-        /// Constant Quality:
-        /// 1 is lossless, 63 is the worst quality possible.
-        #[arg(long,
-              value_name = "CQ",
-              default_value_t = 19,
-              value_parser = clap::value_parser!(u64).range(1..=63),
-              conflicts_with = "crf"
-        )]
-        cq: u64,
-
-        /// Rotate clockwise 90 degrees
-        #[arg(long)]
-        rotate: bool,
-    },
-
-    /// Flip one or more videos.
-    Flip {},
-
-    /// Merge two or more videos.
-    Merge {},
-
-    /// Upscale one or more videos for higher peak quality on platforms like `Youtube`.
-    /// Uses `FFmpeg`'s recommended settings for upscalling.
-    /// See for more detail `<https://trac.ffmpeg.org/wiki/Encode/YouTube#Upscalingvideoforhigherpeakquality>`
-    Upscale {},
-
-    /// Create a video slideshow from images.
-    Video {
-        /// Set a custom framerate 1..15.
-        #[arg(short,
-              long,
-              value_name = "FRAMERATE",
-              default_value_t = 5, value_parser = clap::value_parser!(u64).range(1..=15)
+    /// Create a video from images
+    Create {
+        /// Set the framerate (duration), between 1s and 15s.
+        #[arg(
+            long,
+            alias = "duration",
+            value_names = ["FRAMERATE, DURATION"],
+            default_value_t = 5,
+            value_parser = clap::value_parser!(u64).range(1..=15)
         )]
         framerate: u64,
     },
-
-    /// Encode one or more videos with settings optimized for `Youtube`.
-    Youtube {},
 }
 
 #[derive(Args, Debug, Clone)]
-pub struct EncodeOption {
-    #[arg(long, value_enum, default_value_t = VideoCodec::H264)]
-    video_codec: VideoCodec,
-
-    #[arg(long, value_enum, default_value_t = AudioCodec::Aac)]
+pub struct EncodeOpt {
+    /// Audio codec options
+    #[arg(short = 'A', long, value_enum, default_value_t = AudioCodec::Aac)]
     audio_codec: AudioCodec,
 
-    #[arg(long, value_enum, default_value_t = VideoExtension::Mp4)]
-    video_extension: VideoExtension,
+    /// Video codec options
+    #[arg(short = 'V', long, value_enum, default_value_t = VideoCodec::H264)]
+    video_codec: VideoCodec,
+
+    /// Video format options
+    #[arg(short = 'F', long, value_enum, default_value_t = VideoFormat::Mp4)]
+    video_format: VideoFormat,
+
+    /// Constant Rate Factor (CRF):
+    /// 0 is lossless, 51 is the worst quality possible
+    #[arg(
+        long,
+        value_name = "CRF",
+        default_value_t = 23,
+        value_parser = clap::value_parser!(u64).range(0..=51),
+        conflicts_with = "cq"
+    )]
+    crf: u64,
+
+    /// Constant Quality:
+    /// 1 is lossless, 63 is the worst quality possible
+    #[arg(long,
+          value_name = "CQ",
+          default_value_t = 19,
+          value_parser = clap::value_parser!(u64).range(1..=63),
+          conflicts_with = "crf"
+    )]
+    cq: u64,
 }
 
 #[derive(ValueEnum, Debug, Clone, strum::Display)]
@@ -155,14 +182,24 @@ pub enum AudioCodec {
     Opus,
 }
 
-#[derive(ValueEnum, Debug, Clone)]
-pub enum VideoExtension {
+#[derive(ValueEnum, Debug, Clone, strum::Display)]
+pub enum VideoFormat {
+    #[strum(to_string = "mp4")]
     Mp4,
+    #[strum(to_string = "mkv")]
     Mkv,
+}
+
+#[derive(ValueEnum, Debug, Clone, strum::Display)]
+pub enum AudioFormat {
+    #[strum(to_string = "mp3")]
+    Mp3,
+    #[strum(to_string = "wav")]
+    Wav,
 }
 
 #[test]
 fn test_cli() {
     use clap::CommandFactory;
-    Cli::command().debug_assert();
+    Opts::command().debug_assert();
 }
