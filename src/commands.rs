@@ -1,5 +1,5 @@
 mod audio;
 mod clip;
 
-pub use audio::Audio;
-pub use clip::Clip;
+pub use audio::audio;
+pub use clip::clip;

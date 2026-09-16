@@ -1,59 +1,40 @@
 use anyhow::Result;
 use clap::Parser;
-use log::error;
 
 mod args;
 mod commands;
 mod ffmpeg;
 
-use crate::args::{Cli, Commands};
-use crate::commands::{Audio, Clip};
+use crate::args::Commands::{Audio, Video};
+use crate::args::{AudioArgs, Commands, Opts, VideoArgs};
+use crate::commands::{audio, clip};
+
+// fn dry_run(&self) {
+//     println!("---\nflag --dry=true printing args only");
+//     println!("{:?}\n---", self.args());
+// }
 
 fn main() -> Result<()> {
-    env_logger::init();
-    let cli = Cli::parse();
+    let opts = Opts::parse();
 
-    match cli.commands {
-        Commands::Audio {
-            input,
-            output,
+    match opts.commands {
+        Audio(AudioArgs {
             audio_codec,
-        } => {
-            let audio = Audio::new_with(&input, output, &audio_codec, cli.dry)?;
-            if let Err(err) = audio.run() {
-                error!("{err}");
+            audio_format,
+        }) => {
+            if let Err(error) = audio(&opts.input, opts.output, audio_codec, audio_format) {
+                eprintln!("{error}");
             }
         }
-        Commands::Clip {
-            input,
-            output,
-            start,
-            end,
-            encode_option,
-            gif,
-        } => {
-            let clip = Clip::new_with(&input, output, &start, &end, encode_option, gif, cli.dry)?;
-            if let Err(err) = clip.run() {
-                error!("{err}");
-            }
-        }
-        Commands::Encode { .. } => {
-            todo!()
-        }
-        Commands::Flip { .. } => {
-            todo!()
-        }
-        Commands::Merge { .. } => {
-            todo!()
-        }
-        Commands::Upscale { .. } => {
-            todo!()
-        }
-        Commands::Video { .. } => {
-            todo!()
-        }
-        Commands::Youtube { .. } => {
-            todo!()
+
+        Video(VideoArgs {
+            flip,
+            encode_opt,
+            youtube,
+            upscale,
+            video_cmd,
+        }) => {
+            todo!();
         }
     }
 
