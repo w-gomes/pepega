@@ -4,6 +4,7 @@ use clap::Parser;
 mod args;
 mod commands;
 mod ffmpeg;
+mod utils;
 
 use crate::args::{AudioArgs, Commands, Opts, VideoArgs};
 use crate::commands::{audio, clip};
