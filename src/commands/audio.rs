@@ -1,10 +1,11 @@
 use std::path::{Path, PathBuf};
 
-use anyhow::{bail, Result};
+use anyhow::{anyhow, bail, Result};
 use chrono::Local;
 
 use crate::args::AudioCodec;
 use crate::ffmpeg::ffmpeg;
+use crate::utils::generate_output;
 
 pub fn audio(
     dry_run: bool,
@@ -16,26 +17,10 @@ pub fn audio(
         bail!("Input must be a file");
     }
 
-    let output = if let Some(output) = output {
-        output
-    } else {
-        let input_clone = input.to_path_buf();
-        let Some(file_name) = input_clone.file_name() else {
-            bail!("Error extracting file name from Input");
-        };
-
-        // Convert OsStr to &str to pass to format!
-        let Some(file_name) = file_name.to_str() else {
-            bail!("Error converting OsStr to &str");
-        };
-
-        let now = Local::now();
-        let timestamp = now.format("%Y%m%d_%H%M%S").to_string();
-        let file_name = format!("AUDIO_{timestamp}_{file_name}");
-
-        let output = Path::new(&input_clone).with_file_name(file_name);
-        output
-    };
+    let output = output.clone().map_or_else(
+        || generate_output(&input),
+        |_| output.ok_or(anyhow!("Error getting output.")),
+    )?;
 
     let mut args = Vec::new();
     args.extend_from_slice(&[
