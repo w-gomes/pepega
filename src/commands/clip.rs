@@ -7,13 +7,12 @@ use crate::args::EncodeOpt;
 use crate::ffmpeg::ffmpeg;
 
 pub fn clip(
+    dry_run: bool,
     input: &Path,
     output: Option<PathBuf>,
     start: &str,
     end: &str,
-    encode_option: Option<EncodeOpt>,
-    gif: bool,
-    dry_run: bool,
+    encode_opt: EncodeOpt,
 ) -> Result<()> {
     if !input.is_file() {
         bail!("Input must be a file");
@@ -42,5 +41,15 @@ pub fn clip(
         output
     };
 
+    Ok(())
+}
+
+pub fn clip_gif(
+    dry_run: bool,
+    input: &Path,
+    output: Option<PathBuf>,
+    start: &str,
+    end: &str,
+) -> Result<()> {
     Ok(())
 }

@@ -19,7 +19,7 @@ pub fn audio(
 
     let output = output.clone().map_or_else(
         || generate_output(&input),
-        |_| output.ok_or(anyhow!("Error getting output.")),
+        |_| output.ok_or(anyhow!("Unable to get the output file")),
     )?;
 
     let mut args = Vec::new();
@@ -29,6 +29,8 @@ pub fn audio(
         "-vn".to_string(),
     ]);
 
+    // The output is added together with audio_codec, because the file format
+    // depends on it.
     match audio_codec {
         AudioCodec::Aac => {
             let output = output.with_extension("aac");

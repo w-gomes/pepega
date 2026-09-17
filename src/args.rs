@@ -72,7 +72,7 @@ pub struct VideoArgs {
 
     /// Extra options for video
     #[command(subcommand)]
-    pub video_cmd: VideoCmd,
+    pub video_cmd: Option<VideoCmd>,
 }
 
 #[derive(Subcommand, Debug)]
