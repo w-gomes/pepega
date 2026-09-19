@@ -8,7 +8,7 @@ pub fn encode(
     dry_run: bool,
     input: &Path,
     output: Option<PathBuf>,
-    encode_opt: EncodeOpt,
+    encode_opt: Option<EncodeOpt>,
 ) -> Result<()> {
     Ok(())
 }

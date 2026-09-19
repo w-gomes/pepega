@@ -93,7 +93,7 @@ use tempfile::TempDir;
 // }
 
 // Generate an output name
-pub fn generate_output(path: &Path) -> Result<PathBuf> {
+pub fn generate_output(path: &Path, command_str: &str) -> Result<PathBuf> {
     let original_input = path.to_path_buf();
     let Some(file_name) = original_input.file_name() else {
         return Err(anyhow!("Error extracting file name from Input"));
@@ -106,7 +106,7 @@ pub fn generate_output(path: &Path) -> Result<PathBuf> {
 
     let now = Local::now();
     let timestamp = now.format("%Y%m%d_%H%M%S").to_string();
-    let file_name = format!("AUDIO_{timestamp}_{file_name}");
+    let file_name = format!("{command_str}_{timestamp}_{file_name}");
 
     Ok(Path::new(&original_input).with_file_name(file_name))
 }
