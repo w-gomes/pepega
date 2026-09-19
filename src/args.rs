@@ -57,7 +57,7 @@ pub struct VideoArgs {
 
     /// Encoding options
     #[command(flatten)]
-    pub encode_opt: EncodeOpt,
+    pub encode_opt: Option<EncodeOpt>,
 
     /// Transcode optimized for `Youtube`
     #[arg(short = 'Y', long, default_value_t = false, conflicts_with = "upscale")]
@@ -114,15 +114,15 @@ pub enum VideoCmd {
 pub struct EncodeOpt {
     /// Audio codec options
     #[arg(short = 'A', long, value_enum, default_value_t = AudioCodec::Aac)]
-    audio_codec: AudioCodec,
+    pub audio_codec: AudioCodec,
 
     /// Video codec options
     #[arg(short = 'V', long, value_enum, default_value_t = VideoCodec::H264)]
-    video_codec: VideoCodec,
+    pub video_codec: VideoCodec,
 
     /// Video format options
     #[arg(short = 'F', long, value_enum, default_value_t = VideoFormat::Mp4)]
-    video_format: VideoFormat,
+    pub video_format: VideoFormat,
 
     /// Constant Rate Factor (CRF):
     /// 0 is lossless, 51 is the worst quality possible
@@ -133,7 +133,7 @@ pub struct EncodeOpt {
         value_parser = clap::value_parser!(u64).range(0..=51),
         conflicts_with = "cq"
     )]
-    crf: u64,
+    pub crf: u64,
 
     /// Constant Quality:
     /// 1 is lossless, 63 is the worst quality possible
@@ -143,7 +143,7 @@ pub struct EncodeOpt {
           value_parser = clap::value_parser!(u64).range(1..=63),
           conflicts_with = "crf"
     )]
-    cq: u64,
+    pub cq: u64,
 }
 
 #[derive(ValueEnum, Debug, Clone, strum::Display)]

@@ -18,7 +18,7 @@ pub fn audio(
     }
 
     let output = output.clone().map_or_else(
-        || generate_output(&input),
+        || generate_output(&input, "AUDIO"),
         |_| output.ok_or(anyhow!("Unable to get the output file")),
     )?;
 
