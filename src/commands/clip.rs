@@ -57,8 +57,6 @@ pub fn clip(
         ]);
     };
 
-    println!("wtf");
-
     if dry_run {
         let args = args.join(" ");
         println!("ffmpeg {args}");
@@ -76,5 +74,38 @@ pub fn clip_gif(
     start: &str,
     end: &str,
 ) -> Result<()> {
+    if !input.is_file() {
+        bail!("Input must be a file");
+    }
+
+    let output = output.clone().map_or_else(
+        || generate_output(&input, "CLIP_GIF"),
+        |_| output.ok_or(anyhow!("Unable to get the output file")),
+    )?;
+
+    let mut args = Vec::new();
+
+    args.extend_from_slice(&[
+        "-i".to_string(),
+        input.display().to_string(),
+        "-ss".to_string(),
+        start.to_string(),
+        "-to".to_string(),
+        end.to_string(),
+        "-vf".to_string(),
+        "fps=30,scale=1080:-1:flags=lanczos,split[s0][s1];[s0]palettegen[p];[s1][p]paletteuse"
+            .to_string(),
+        "-loop".to_string(),
+        "0".to_string(),
+        output.with_extension("gif").display().to_string(),
+    ]);
+
+    if dry_run {
+        let args = args.join(" ");
+        println!("ffmpeg {args}");
+    } else {
+        ffmpeg(args.into_iter())?;
+    }
+
     Ok(())
 }
