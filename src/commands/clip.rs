@@ -12,15 +12,15 @@ pub fn clip(
     output: Option<PathBuf>,
     start: &str,
     end: &str,
-    encode_opt: EncodeOpt,
+    encode_opt: &EncodeOpt,
 ) -> Result<()> {
     if !input.is_file() {
         bail!("Input must be a file");
     }
 
     let output = output.clone().map_or_else(
-        || generate_output_with(&input, "CLIP"),
-        |_| output.ok_or(anyhow!("Unable to get the output file")),
+        || generate_output_with(input, "CLIP"),
+        |_| output.ok_or_else(|| anyhow!("Unable to get the output file")),
     )?;
 
     let mut args = Vec::new();
@@ -44,7 +44,7 @@ pub fn clip(
         let args = args.join(" ");
         println!("ffmpeg {args}");
     } else {
-        ffmpeg(args.into_iter())?;
+        ffmpeg(args)?;
     }
 
     Ok(())
@@ -62,8 +62,8 @@ pub fn clip_gif(
     }
 
     let output = output.clone().map_or_else(
-        || generate_output_with(&input, "CLIP_GIF"),
-        |_| output.ok_or(anyhow!("Unable to get the output file")),
+        || generate_output_with(input, "CLIP_GIF"),
+        |_| output.ok_or_else(|| anyhow!("Unable to get the output file")),
     )?;
 
     let mut args = Vec::new();
@@ -86,7 +86,7 @@ pub fn clip_gif(
         let args = args.join(" ");
         println!("ffmpeg {args}");
     } else {
-        ffmpeg(args.into_iter())?;
+        ffmpeg(args)?;
     }
 
     Ok(())

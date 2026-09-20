@@ -10,15 +10,15 @@ pub fn audio(
     dry_run: bool,
     input: &Path,
     output: Option<PathBuf>,
-    audio_codec: AudioCodec,
+    audio_codec: &AudioCodec,
 ) -> Result<()> {
     if !input.is_file() {
         bail!("Input must be a file");
     }
 
     let output = output.clone().map_or_else(
-        || generate_output_with(&input, "AUDIO"),
-        |_| output.ok_or(anyhow!("Unable to get the output file")),
+        || generate_output_with(input, "AUDIO"),
+        |_| output.ok_or_else(|| anyhow!("Unable to get the output file")),
     )?;
 
     let mut args = Vec::new();
@@ -67,7 +67,7 @@ pub fn audio(
         let args = args.join(" ");
         println!("ffmpeg {args}");
     } else {
-        ffmpeg(args.into_iter())?;
+        ffmpeg(args)?;
     }
 
     Ok(())

@@ -2,7 +2,7 @@ use std::process::{Command, Stdio};
 
 use anyhow::{anyhow, Result};
 
-pub fn ffmpeg<'a, Iter>(args: Iter) -> Result<()>
+pub fn ffmpeg<Iter>(args: Iter) -> Result<()>
 where
     Iter: std::iter::IntoIterator<Item = String>,
 {
