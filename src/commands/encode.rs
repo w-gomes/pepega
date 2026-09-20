@@ -7,6 +7,10 @@ use crate::args::{EncodeOpt, VideoCodec};
 use crate::ffmpeg::ffmpeg;
 use crate::utils::{generate_multiple_inputs_and_outputs, generate_output_with};
 
+const ENCODE: &str = "ENCODE";
+const ENCODE_YOUTUBE: &str = "ENCODE_YOUTUBE";
+const ENCODE_UPSCALE: &str = "ENCODE_UPSCALE";
+
 pub fn encode(
     dry_run: bool,
     input: &Path,
@@ -16,7 +20,7 @@ pub fn encode(
 ) -> Result<()> {
     if input.is_file() {
         let output = output.clone().map_or_else(
-            || generate_output_with(input, "ENCODE"),
+            || generate_output_with(input, ENCODE),
             |_| output.ok_or_else(|| anyhow!("Unable to get the output file")),
         )?;
 
@@ -60,19 +64,19 @@ pub fn encode(
 }
 
 pub fn encode_youtube(
-    dry_run: bool,
-    input: &Path,
-    output: Option<PathBuf>,
-    flip: bool,
+    _dry_run: bool,
+    _input: &Path,
+    _output: Option<PathBuf>,
+    _flip: bool,
 ) -> Result<()> {
     Ok(())
 }
 
 pub fn encode_upscale(
-    dry_run: bool,
-    input: &Path,
-    output: Option<PathBuf>,
-    flip: bool,
+    _dry_run: bool,
+    _input: &Path,
+    _output: Option<PathBuf>,
+    _flip: bool,
 ) -> Result<()> {
     Ok(())
 }
@@ -179,7 +183,7 @@ fn multiple_file(
         inner_args.extend(encoders);
         inner_args.push(output.display().to_string());
 
-        args.push(inner_args)
+        args.push(inner_args);
     }
 
     Ok(args)

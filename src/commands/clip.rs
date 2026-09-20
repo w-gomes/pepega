@@ -6,6 +6,9 @@ use crate::args::EncodeOpt;
 use crate::ffmpeg::ffmpeg;
 use crate::utils::generate_output_with;
 
+const CLIP: &str = "CLIP";
+const CLIP_GIF: &str = "CLIP_GIF";
+
 pub fn clip(
     dry_run: bool,
     input: &Path,
@@ -19,7 +22,7 @@ pub fn clip(
     }
 
     let output = output.clone().map_or_else(
-        || generate_output_with(input, "CLIP"),
+        || generate_output_with(input, CLIP),
         |_| output.ok_or_else(|| anyhow!("Unable to get the output file")),
     )?;
 
@@ -62,7 +65,7 @@ pub fn clip_gif(
     }
 
     let output = output.clone().map_or_else(
-        || generate_output_with(input, "CLIP_GIF"),
+        || generate_output_with(input, CLIP_GIF),
         |_| output.ok_or_else(|| anyhow!("Unable to get the output file")),
     )?;
 
