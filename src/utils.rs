@@ -7,6 +7,7 @@ use std::{
 use anyhow::{anyhow, Context, Result};
 use chrono::Local;
 use tempfile::TempDir;
+use walkdir::{DirEntry, WalkDir};
 
 // use crate::InputType;
 
@@ -93,7 +94,7 @@ use tempfile::TempDir;
 // }
 
 // Generate an output name
-pub fn generate_output(path: &Path, command_str: &str) -> Result<PathBuf> {
+pub fn generate_output_with(path: &Path, command_str: &str) -> Result<PathBuf> {
     let original_input = path.to_path_buf();
     let Some(file_name) = original_input.file_name() else {
         return Err(anyhow!("Error extracting file name from Input"));
@@ -109,4 +110,37 @@ pub fn generate_output(path: &Path, command_str: &str) -> Result<PathBuf> {
     let file_name = format!("{command_str}_{timestamp}_{file_name}");
 
     Ok(Path::new(&original_input).with_file_name(file_name))
+}
+
+// Generate outputs from inputs in a directory
+pub fn generate_multiple_inputs_and_outputs(
+    dir: &Path,
+    command_str: &str,
+) -> Result<Vec<(PathBuf, PathBuf)>> {
+    let mut input_output_pair = Vec::new();
+    for entry in WalkDir::new(dir)
+        .into_iter()
+        .filter_map(Result::ok)
+        .filter(|e| e.file_type().is_file())
+        .filter(|e| {
+            e.path()
+                .extension()
+                .is_some_and(|ext| ext == "mkv" || ext == "mp4")
+        })
+    {
+        let input = entry.path();
+        let output = generate_output_with(&input, command_str)?;
+
+        input_output_pair.push((input.to_path_buf(), output))
+    }
+
+    Ok(input_output_pair)
+}
+
+fn is_hidden(entry: &DirEntry) -> bool {
+    entry
+        .file_name()
+        .to_str()
+        .map(|s| s.starts_with("."))
+        .unwrap_or(false)
 }

@@ -56,11 +56,11 @@ fn main() -> Result<()> {
                 }
             } else {
                 if youtube {
-                    encode_youtube(opts.dry_run, &opts.input, opts.output)?;
+                    encode_youtube(opts.dry_run, &opts.input, opts.output, flip)?;
                 } else if upscale {
-                    encode_upscale(opts.dry_run, &opts.input, opts.output)?;
+                    encode_upscale(opts.dry_run, &opts.input, opts.output, flip)?;
                 } else {
-                    encode(opts.dry_run, &opts.input, opts.output, encode_opt)?;
+                    encode(opts.dry_run, &opts.input, opts.output, encode_opt, flip)?;
                 }
             }
         }
