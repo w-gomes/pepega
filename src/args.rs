@@ -57,7 +57,7 @@ pub struct VideoArgs {
 
     /// Encoding options
     #[command(flatten)]
-    pub encode_opt: Option<EncodeOpt>,
+    pub encode_opt: EncodeOpt,
 
     /// Transcode optimized for `Youtube`
     #[arg(short = 'Y', long, default_value_t = false, conflicts_with = "upscale")]
@@ -112,20 +112,21 @@ pub enum VideoCmd {
 
 #[derive(Args, Debug, Clone)]
 pub struct EncodeOpt {
+    /// Video codec options
+    #[arg(short = 'V', long, value_enum)]
+    pub video_codec: VideoCodec,
+
     /// Audio codec options
     #[arg(short = 'A', long, value_enum, default_value_t = AudioCodec::Aac)]
     pub audio_codec: AudioCodec,
-
-    /// Video codec options
-    #[arg(short = 'V', long, value_enum, default_value_t = VideoCodec::H264)]
-    pub video_codec: VideoCodec,
 
     /// Video format options
     #[arg(short = 'F', long, value_enum, default_value_t = VideoFormat::Mp4)]
     pub video_format: VideoFormat,
 
-    /// Constant Rate Factor (CRF):
-    /// 0 is lossless, 51 is the worst quality possible
+    /// Constant Rate Factor (CRF): [0..=51]
+    /// 0 is lossless, 51 is the worst quality possible.
+    /// Only works with H264
     #[arg(
         long,
         value_name = "CRF",
@@ -135,13 +136,13 @@ pub struct EncodeOpt {
     )]
     pub crf: u64,
 
-    /// Constant Quality:
-    /// 1 is lossless, 63 is the worst quality possible
+    /// Constant Quality: [1..=63]
+    /// 1 is lossless, 63 is the worst quality possible.
+    /// Only works with H265, AV1 and HVEC
     #[arg(long,
           value_name = "CQ",
           default_value_t = 19,
           value_parser = clap::value_parser!(u64).range(1..=63),
-          conflicts_with = "crf"
     )]
     pub cq: u64,
 }

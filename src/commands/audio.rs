@@ -1,11 +1,10 @@
 use std::path::{Path, PathBuf};
 
 use anyhow::{anyhow, bail, Result};
-use chrono::Local;
 
 use crate::args::AudioCodec;
 use crate::ffmpeg::ffmpeg;
-use crate::utils::generate_output;
+use crate::utils::generate_output_with;
 
 pub fn audio(
     dry_run: bool,
@@ -18,7 +17,7 @@ pub fn audio(
     }
 
     let output = output.clone().map_or_else(
-        || generate_output(&input, "AUDIO"),
+        || generate_output_with(&input, "AUDIO"),
         |_| output.ok_or(anyhow!("Unable to get the output file")),
     )?;
 

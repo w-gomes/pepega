@@ -9,6 +9,8 @@ chrono = "0.4.42"
 clap = { version = "4.5.26", features = ["derive"] }
 tempfile = "3.15.0"
 strum = { version = "0.28.0", features = ["derive"] }
+walkdir = "2.5.0"
+rayon = "1.12.0"
 
 [profile.dev]
 opt-level = 0
