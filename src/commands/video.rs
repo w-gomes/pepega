@@ -2,6 +2,8 @@ use anyhow::Result;
 
 use std::path::{Path, PathBuf};
 
+// TODO: -tune stillimage
+
 pub fn video(
     _dry_run: bool,
     _input: &Path,
