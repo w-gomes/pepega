@@ -1,15 +1,48 @@
 use std::{
-    // fs::{self, File},
-    // io::Write,
+    fs::{self, File},
+    io::Write,
     path::{Path, PathBuf},
 };
 
 use anyhow::{anyhow, Result};
 use chrono::Local;
+use tempfile::TempDir;
 use walkdir::{DirEntry, WalkDir};
-//use tempfile::TempDir;
 
-// use crate::InputType;
+pub fn merge_with_inputs_and_filters(dir: &Path) -> Result<(Vec<String>, String)> {
+    let mut inputs = Vec::new();
+    let mut filters = String::new();
+    let mut idx = 0;
+
+    for entry in WalkDir::new(dir)
+        .max_depth(1)
+        .into_iter()
+        .filter_entry(|e| !is_hidden(e))
+        .filter_map(Result::ok)
+        .filter(|e| e.file_type().is_file())
+        .filter(|e| {
+            e.path()
+                .extension()
+                .is_some_and(|ext| ext == "mkv" || ext == "mp4")
+        })
+    {
+        let input = entry.path();
+        inputs.extend(vec!["-i".to_string(), input.display().to_string()]);
+        filters.push_str(format!("[{idx}:v:0][{idx}:a:0]").as_str());
+        idx += 1;
+    }
+
+    debug_assert!(inputs.len() % 2 == 0);
+    if (inputs.len() / 2) < 2 {
+        return Err(anyhow!(
+            "Not enough video file to merge. {} contains: {}",
+            dir.display().to_string(),
+            inputs.len() / 2
+        ));
+    }
+
+    Ok((inputs, filters))
+}
 
 // // Generates filters for merge subcommand.
 // pub fn filters_for_merge(

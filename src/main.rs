@@ -48,7 +48,7 @@ fn main() -> Result<()> {
                         }
                     }
                     VideoCmd::Merge => {
-                        merge(opts.dry_run, &opts.input, opts.output)?;
+                        merge(opts.dry_run, &opts.input, opts.output, &encode_opt)?;
                     }
                     VideoCmd::Create { framerate } => {
                         video(opts.dry_run, &opts.input, opts.output, framerate)?;
