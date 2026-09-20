@@ -21,7 +21,7 @@ fn main() -> Result<()> {
 
     match opts.commands {
         Commands::Audio(AudioArgs { audio_codec }) => {
-            audio(opts.dry_run, &opts.input, opts.output, audio_codec)?;
+            audio(opts.dry_run, &opts.input, opts.output, &audio_codec)?;
         }
 
         Commands::Video(VideoArgs {
@@ -43,7 +43,7 @@ fn main() -> Result<()> {
                                 opts.output,
                                 &start,
                                 &end,
-                                encode_opt,
+                                &encode_opt,
                             )?;
                         }
                     }
@@ -54,14 +54,12 @@ fn main() -> Result<()> {
                         video(opts.dry_run, &opts.input, opts.output, framerate)?;
                     }
                 }
+            } else if youtube {
+                encode_youtube(opts.dry_run, &opts.input, opts.output, flip)?;
+            } else if upscale {
+                encode_upscale(opts.dry_run, &opts.input, opts.output, flip)?;
             } else {
-                if youtube {
-                    encode_youtube(opts.dry_run, &opts.input, opts.output, flip)?;
-                } else if upscale {
-                    encode_upscale(opts.dry_run, &opts.input, opts.output, flip)?;
-                } else {
-                    encode(opts.dry_run, &opts.input, opts.output, encode_opt, flip)?;
-                }
+                encode(opts.dry_run, &opts.input, opts.output, &encode_opt, flip)?;
             }
         }
     }

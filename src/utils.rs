@@ -4,10 +4,10 @@ use std::{
     path::{Path, PathBuf},
 };
 
-use anyhow::{anyhow, Context, Result};
+use anyhow::{anyhow, Result};
 use chrono::Local;
-use tempfile::TempDir;
 use walkdir::{DirEntry, WalkDir};
+//use tempfile::TempDir;
 
 // use crate::InputType;
 
@@ -120,6 +120,7 @@ pub fn generate_multiple_inputs_and_outputs(
     let mut input_output_pair = Vec::new();
     for entry in WalkDir::new(dir)
         .into_iter()
+        .filter_entry(|e| !is_hidden(e))
         .filter_map(Result::ok)
         .filter(|e| e.file_type().is_file())
         .filter(|e| {
@@ -129,9 +130,9 @@ pub fn generate_multiple_inputs_and_outputs(
         })
     {
         let input = entry.path();
-        let output = generate_output_with(&input, command_str)?;
+        let output = generate_output_with(input, command_str)?;
 
-        input_output_pair.push((input.to_path_buf(), output))
+        input_output_pair.push((input.to_path_buf(), output));
     }
 
     Ok(input_output_pair)
@@ -141,6 +142,5 @@ fn is_hidden(entry: &DirEntry) -> bool {
     entry
         .file_name()
         .to_str()
-        .map(|s| s.starts_with("."))
-        .unwrap_or(false)
+        .is_some_and(|s| s.starts_with('.'))
 }
