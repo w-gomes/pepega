@@ -87,7 +87,7 @@ fn single_file(input: &Path, output: &Path, encode_opt: &EncodeOpt, flip: bool) 
     let output = output.with_extension(encode_opt.video_format.to_string());
 
     let encoders = match encode_opt.video_codec {
-        ref enc @ (VideoCodec::Av1 | VideoCodec::H265 | VideoCodec::Hevc) => {
+        ref enc @ (VideoCodec::Av1 | VideoCodec::Hevc) => {
             vec![
                 enc.to_string(),
                 "-cq".to_string(),
@@ -96,7 +96,7 @@ fn single_file(input: &Path, output: &Path, encode_opt: &EncodeOpt, flip: bool) 
                 "p1".to_string(),
             ]
         }
-        ref enc @ VideoCodec::H264 => {
+        ref enc @ (VideoCodec::H264 | VideoCodec::H265) => {
             vec![
                 enc.to_string(),
                 "-crf".to_string(),
@@ -144,7 +144,7 @@ fn multiple_file(
         let output = output.with_extension(encode_opt.video_format.to_string());
 
         let encoders = match encode_opt.video_codec {
-            ref enc @ (VideoCodec::Av1 | VideoCodec::H265 | VideoCodec::Hevc) => {
+            ref enc @ (VideoCodec::Av1 | VideoCodec::Hevc) => {
                 vec![
                     enc.to_string(),
                     "-cq".to_string(),
@@ -153,7 +153,7 @@ fn multiple_file(
                     "p1".to_string(),
                 ]
             }
-            ref enc @ VideoCodec::H264 => {
+            ref enc @ (VideoCodec::H264 | VideoCodec::H265) => {
                 vec![
                     enc.to_string(),
                     "-crf".to_string(),
