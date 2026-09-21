@@ -11,6 +11,9 @@ const ENCODE: &str = "ENCODE";
 const ENCODE_YOUTUBE: &str = "ENCODE_YOUTUBE";
 const ENCODE_UPSCALE: &str = "ENCODE_UPSCALE";
 
+const DEFAULT_CQ: u64 = 19;
+const DEFAULT_CRF: u64 = 23;
+
 pub fn encode(
     dry_run: bool,
     input: &Path,
@@ -66,7 +69,6 @@ pub fn encode_youtube(
 ) -> Result<()> {
     if input.is_file() {
         println!("Running encode on a single file");
-
         let output = output.clone().map_or_else(
             || generate_output_with(input, ENCODE_YOUTUBE),
             |_| output.ok_or_else(|| anyhow!("Unable to get the output file")),
@@ -100,7 +102,6 @@ pub fn encode_youtube(
         }
     } else if input.is_dir() {
         println!("Running encode on multiple files");
-
         let inputs_outputs_pair = generate_multiple_inputs_and_outputs(input, ENCODE_YOUTUBE)?;
 
         let mut args = Vec::new();
@@ -160,7 +161,6 @@ pub fn encode_upscale(
 ) -> Result<()> {
     if input.is_file() {
         println!("Running encode on a single file");
-
         let output = output.clone().map_or_else(
             || generate_output_with(input, ENCODE_UPSCALE),
             |_| output.ok_or_else(|| anyhow!("Unable to get the output file")),
@@ -194,7 +194,6 @@ pub fn encode_upscale(
         }
     } else if input.is_dir() {
         println!("Running encode on multiple files");
-
         let inputs_outputs_pair = generate_multiple_inputs_and_outputs(input, ENCODE_UPSCALE)?;
 
         let mut args = Vec::new();
@@ -258,9 +257,9 @@ fn single_file(
     )?;
 
     let mut args = Vec::new();
-
     args.extend(with_flip_or_default(input, flip));
     args.extend(encode_opt_to_vec(encode_opt));
+    args.extend_from_slice(&["-c:a".to_string(), encode_opt.audio_codec.to_string()]);
 
     let output = output.with_extension(encode_opt.video_format.to_string());
     args.push(output.display().to_string());
@@ -280,9 +279,9 @@ fn multiple_file(
 
     for (input, output) in inputs_ouputs_pair {
         let mut inner_args = Vec::new();
-
         inner_args.extend(with_flip_or_default(&input, flip));
         inner_args.extend(encode_opt_to_vec(encode_opt));
+        inner_args.extend_from_slice(&["-c:a".to_string(), encode_opt.audio_codec.to_string()]);
 
         let output = output.with_extension(encode_opt.video_format.to_string());
         inner_args.push(output.display().to_string());
@@ -297,18 +296,20 @@ pub fn encode_opt_to_vec(encode_opt: &EncodeOpt) -> Vec<String> {
     match encode_opt.video_codec {
         ref enc @ (VideoCodec::Av1 | VideoCodec::Hevc) => {
             vec![
+                "-c:v".to_string(),
                 enc.to_string(),
                 "-cq".to_string(),
-                encode_opt.cq.unwrap_or(19).to_string(),
+                encode_opt.cq.unwrap_or(DEFAULT_CQ).to_string(),
                 "-preset".to_string(),
                 "p1".to_string(),
             ]
         }
         ref enc @ (VideoCodec::H264 | VideoCodec::H265) => {
             vec![
+                "-c:v".to_string(),
                 enc.to_string(),
                 "-crf".to_string(),
-                encode_opt.crf.unwrap_or(23).to_string(),
+                encode_opt.crf.unwrap_or(DEFAULT_CRF).to_string(),
                 "-preset".to_string(),
                 "ultrafast".to_string(),
             ]
@@ -323,13 +324,8 @@ fn with_flip_or_default(input: &Path, flip: bool) -> Vec<String> {
             "-90.0".to_string(),
             "-i".to_string(),
             input.display().to_string(),
-            "-c:v".to_string(),
         ]
     } else {
-        vec![
-            "-i".to_string(),
-            input.display().to_string(),
-            "-c:v".to_string(),
-        ]
+        vec!["-i".to_string(), input.display().to_string()]
     }
 }
