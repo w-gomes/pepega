@@ -3,6 +3,9 @@ use std::path::PathBuf;
 use anyhow::{bail, Result};
 use clap::{Args, Parser, Subcommand, ValueEnum};
 
+pub const DEFAULT_CRF: u64 = 23;
+pub const DEFAULT_CQ: u64 = 19;
+
 #[derive(Parser, Debug)]
 #[command(
     name = "pepega",
@@ -163,8 +166,8 @@ impl Default for EncodeOpt {
             video_codec: Some(VideoCodec::H264),
             audio_codec: AudioCodec::Aac,
             video_format: VideoFormat::Mp4,
-            crf: Some(23),
-            cq: Some(19),
+            crf: Some(DEFAULT_CRF),
+            cq: Some(DEFAULT_CQ),
         }
     }
 }
