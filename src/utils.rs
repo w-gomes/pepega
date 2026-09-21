@@ -1,12 +1,12 @@
 use std::{
-    fs::File,
+    fs,
     io::Write,
     path::{Path, PathBuf},
 };
 
-use anyhow::{anyhow, Result};
+use anyhow::{anyhow, Context, Result};
 use chrono::Local;
-use tempfile::TempDir;
+use tempfile::{Builder, NamedTempFile};
 use walkdir::{DirEntry, WalkDir};
 
 pub fn merge_with_inputs_and_filters(dir: &Path) -> Result<(Vec<String>, String)> {
@@ -43,12 +43,12 @@ pub fn merge_with_inputs_and_filters(dir: &Path) -> Result<(Vec<String>, String)
     Ok((inputs, filters))
 }
 
-pub fn temp_list_for_video(dir: &Path, framerate: u64) -> Result<(TempDir, PathBuf, usize)> {
-    // TODO: replace TempDir. It's now unmaintained.
-    // Also, it's not working.
-    let temp_dir = TempDir::new_in(dir)?;
-    let temp_list = temp_dir.path().join("temp_list.txt");
-    let mut temp_list_file = File::create(&temp_list)?;
+// Create a temporary file with the list of images for ffmpeg to read from
+pub fn temp_list_for_video(dir: &Path, framerate: u64) -> Result<(NamedTempFile, usize)> {
+    let mut temp_file = Builder::new()
+        .prefix("temp-file")
+        .suffix(".txt")
+        .tempfile()?;
 
     let mut total_images = 0;
 
@@ -64,41 +64,16 @@ pub fn temp_list_for_video(dir: &Path, framerate: u64) -> Result<(TempDir, PathB
         })
     {
         let entry = entry.path();
-        writeln!(temp_list_file, "file '{}'", entry.display())?;
-        writeln!(temp_list_file, "duration {framerate}")?;
+        let entry = fs::canonicalize(&entry)
+            .with_context(|| format!("Failed to get the absolute path of {}", entry.display()))?;
+        println!("{}", entry.display());
+        writeln!(temp_file, "file '{}'", entry.display())?;
+        writeln!(temp_file, "duration {framerate}")?;
         total_images += 1;
     }
 
-    Ok((temp_dir, temp_list, total_images))
+    Ok((temp_file, total_images))
 }
-
-// // Creates a temporary dir and a temporary file
-// pub fn tmp_list_for_video(src: &Path, framerate: i16) -> Result<(TempDir, PathBuf, usize)> {
-//     let tmp_dir = TempDir::new_in(".")?;
-//     let tmp_list = tmp_dir.path().join("tmp_list.txt");
-//     let mut tmp_list_file = File::create(&tmp_list)?;
-
-//     let mut total_images = 0;
-
-//     let source_dir = PathBuf::from(src);
-//     for entry in source_dir.read_dir()?.flatten() {
-//         let entry_path = entry.path();
-//         let entry_path_absolute = fs::canonicalize(&entry_path)
-//             .with_context(|| format!("Failed to get absolute path of {}", entry_path.display()))?;
-
-//         if let Some(ext) = entry_path_absolute.extension() {
-//             if let Some(ext) = ext.to_str() {
-//                 if ext == "png" || ext == "jpg" {
-//                     writeln!(tmp_list_file, "file '{}'", entry_path_absolute.display())?;
-//                     writeln!(tmp_list_file, "duration {framerate}")?;
-//                     total_images += 1;
-//                 }
-//             }
-//         }
-//     }
-
-//     Ok((tmp_dir, tmp_list, total_images))
-// }
 
 // Generate an output name
 pub fn generate_output_with(path: &Path, command_str: &str) -> Result<PathBuf> {
@@ -107,7 +82,7 @@ pub fn generate_output_with(path: &Path, command_str: &str) -> Result<PathBuf> {
         return Err(anyhow!("Error extracting file name from Input"));
     };
 
-    // Convert OsStr to &str to pass to format!
+    // Convert OsStr to &str to pass to format!()
     let Some(file_name) = file_name.to_str() else {
         return Err(anyhow!("Error converting OsStr to &str"));
     };
