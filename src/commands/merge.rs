@@ -37,7 +37,7 @@ pub fn merge(
         "-map".to_string(),
         "[a]".to_string(),
     ]);
-    args.extend(encode_opt_to_vec(&encode_opt));
+    args.extend(encode_opt_to_vec(encode_opt));
 
     let output = output.with_extension(encode_opt.video_format.to_string());
     args.push(output.display().to_string());

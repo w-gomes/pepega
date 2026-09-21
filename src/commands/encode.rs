@@ -282,7 +282,7 @@ fn multiple_file(
         let mut inner_args = Vec::new();
 
         inner_args.extend(with_flip_or_default(&input, flip));
-        inner_args.extend(encode_opt_to_vec(&encode_opt));
+        inner_args.extend(encode_opt_to_vec(encode_opt));
 
         let output = output.with_extension(encode_opt.video_format.to_string());
         inner_args.push(output.display().to_string());
