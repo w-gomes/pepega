@@ -11,19 +11,20 @@ const ENCODE: &str = "ENCODE";
 const ENCODE_YOUTUBE: &str = "ENCODE_YOUTUBE";
 const ENCODE_UPSCALE: &str = "ENCODE_UPSCALE";
 
-const DEFAULT_CQ: u64 = 19;
 const DEFAULT_CRF: u64 = 23;
+const DEFAULT_CQ: u64 = 19;
+const DEFAULT_VIDEOCODEC: VideoCodec = VideoCodec::H264;
 
 pub fn encode(
     dry_run: bool,
     input: &Path,
     output: Option<PathBuf>,
-    encode_opt: &EncodeOpt,
+    encode_opt: EncodeOpt,
     flip: bool,
 ) -> Result<()> {
     if input.is_file() {
         println!("Running encode on a single file");
-        let args = single_file(input, output, encode_opt, flip)?;
+        let args = single_file(input, output, Some(encode_opt), flip)?;
 
         if dry_run {
             let args = args.join(" ");
@@ -33,7 +34,7 @@ pub fn encode(
         }
     } else if input.is_dir() {
         println!("Running encode on multiple files");
-        let args = multiple_file(input, encode_opt, "ENCODE", flip)?;
+        let args = multiple_file(input, Some(encode_opt), "ENCODE", flip)?;
         println!("{} files", args.len());
 
         if dry_run {
@@ -248,7 +249,7 @@ pub fn encode_upscale(
 fn single_file(
     input: &Path,
     output: Option<PathBuf>,
-    encode_opt: &EncodeOpt,
+    encode_opt: Option<EncodeOpt>,
     flip: bool,
 ) -> Result<Vec<String>> {
     let output = output.clone().map_or_else(
@@ -256,9 +257,11 @@ fn single_file(
         |_| output.ok_or_else(|| anyhow!("Unable to get the output file")),
     )?;
 
+    let encode_opt = encode_opt.unwrap_or_default();
+
     let mut args = Vec::new();
     args.extend(with_flip_or_default(input, flip));
-    args.extend(encode_opt_to_vec(encode_opt));
+    args.extend(encode_opt_to_vec(&encode_opt));
     args.extend_from_slice(&["-c:a".to_string(), encode_opt.audio_codec.to_string()]);
 
     let output = output.with_extension(encode_opt.video_format.to_string());
@@ -269,18 +272,19 @@ fn single_file(
 
 fn multiple_file(
     input: &Path,
-    encode_opt: &EncodeOpt,
+    encode_opt: Option<EncodeOpt>,
     command_str: &str,
     flip: bool,
 ) -> Result<Vec<Vec<String>>> {
     let mut args = Vec::new();
 
     let inputs_ouputs_pair = generate_multiple_inputs_and_outputs(input, command_str)?;
+    let encode_opt = encode_opt.unwrap_or_default();
 
     for (input, output) in inputs_ouputs_pair {
         let mut inner_args = Vec::new();
         inner_args.extend(with_flip_or_default(&input, flip));
-        inner_args.extend(encode_opt_to_vec(encode_opt));
+        inner_args.extend(encode_opt_to_vec(&encode_opt));
         inner_args.extend_from_slice(&["-c:a".to_string(), encode_opt.audio_codec.to_string()]);
 
         let output = output.with_extension(encode_opt.video_format.to_string());
@@ -293,7 +297,11 @@ fn multiple_file(
 }
 
 pub fn encode_opt_to_vec(encode_opt: &EncodeOpt) -> Vec<String> {
-    match encode_opt.video_codec {
+    match encode_opt
+        .video_codec
+        .as_ref()
+        .unwrap_or(&DEFAULT_VIDEOCODEC)
+    {
         ref enc @ (VideoCodec::Av1 | VideoCodec::Hevc) => {
             vec![
                 "-c:v".to_string(),

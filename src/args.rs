@@ -33,12 +33,12 @@ pub enum Commands {
     /// Extract the audio stream from a video file.
     Audio(AudioArgs),
 
-    /// Common tasks on video: Encode, Youtube, Upscale, Gif.
+    /// Common tasks on video: Encode, Clip, Merge, Youtube, Upscale, Gif.
     /// Run pepega.exe video --help for more information
     Video(VideoArgs),
 
     /// Create a video from images inside a directory.
-    Image {
+    ToVideo {
         /// Set the framerate (duration), between 1s and 15s.
         #[arg(
             long,
@@ -61,30 +61,60 @@ pub struct AudioArgs {
 #[derive(Args, Debug)]
 pub struct VideoArgs {
     #[command(subcommand)]
-    pub video_subcommand: VideoCommands,
+    pub video_commands: VideoCommands,
 }
 
 #[derive(Subcommand, Debug)]
 pub enum VideoCommands {
-    /// Encode options
+    /// Encode the video
     Encode {
         #[command(flatten)]
         encode_opt: EncodeOpt,
 
-        #[command(subcommand)]
-        encode_subcommand: Option<EncodeCommands>,
+        /// Flip (rotate) video clockwise 90 degrees
+        #[arg(long)]
+        flip: bool,
+    },
+
+    /// Clip (trim) a video with START and END timestamps.
+    /// If Encode Options are not present, the stream will be copied
+    Clip {
+        #[command(flatten)]
+        encode_opt: Option<EncodeOpt>,
+
+        /// The start of the clip
+        start: String,
+
+        /// The end of the clip
+        end: String,
+    },
+
+    /// Merge two or more videos inside a directory
+    #[command(alias = "concat")]
+    Merge {
+        #[command(flatten)]
+        encode_opt: EncodeOpt,
     },
 
     /// Transcode optimized for `Youtube`
-    Youtube,
+    Youtube {
+        /// Flip (rotate) video clockwise 90 degrees
+        #[arg(long)]
+        flip: bool,
+    },
 
     /// Upscale and transcode video for higher peak quality on platforms like `Youtube`.
     /// Uses `FFmpeg`'s recommended settings for upscalling
     ///
     /// See for more detail `<https://trac.ffmpeg.org/wiki/Encode/YouTube#Upscalingvideoforhigherpeakquality>`
-    Upscale,
+    Upscale {
+        /// Flip (rotate) video clockwise 90 degrees
+        #[arg(long)]
+        flip: bool,
+    },
 
-    /// Create a gif
+    /// Clip (trim) a video and save it as `gif`
+    /// Note: `gif` file is large, even for short clip
     Gif {
         /// The start of the gif
         start: String,
@@ -94,31 +124,11 @@ pub enum VideoCommands {
     },
 }
 
-#[derive(Subcommand, Debug)]
-pub enum EncodeCommands {
-    /// Clip (trim) a video with START and END timestamps
-    #[command(alias = "trim")]
-    Clip {
-        /// The start of the clip
-        start: String,
-
-        /// The end of the clip
-        end: String,
-    },
-
-    /// Flip (rotate) video clockwise 90 degrees
-    Flip,
-
-    /// Merge two or more videos inside a directory
-    #[command(alias = "concat")]
-    Merge,
-}
-
 #[derive(Args, Debug, Clone)]
 pub struct EncodeOpt {
     /// Video codec options
     #[arg(short = 'V', long, value_enum)]
-    pub video_codec: VideoCodec,
+    pub video_codec: Option<VideoCodec>,
 
     /// Audio codec options
     #[arg(short = 'A', long, value_enum, default_value_t = AudioCodec::Aac)]
@@ -147,18 +157,32 @@ pub struct EncodeOpt {
     pub cq: Option<u64>,
 }
 
+impl Default for EncodeOpt {
+    fn default() -> Self {
+        Self {
+            video_codec: Some(VideoCodec::H264),
+            audio_codec: AudioCodec::Aac,
+            video_format: VideoFormat::Mp4,
+            crf: Some(23),
+            cq: Some(19),
+        }
+    }
+}
+
 impl EncodeOpt {
     pub fn check_quality_flags(&self) -> Result<()> {
-        match self.video_codec {
-            VideoCodec::H264 | VideoCodec::H265 => {
-                if self.cq.is_some() {
-                    bail!("--cq is not used with {}", self.video_codec);
+        if let Some(ref video_codec) = self.video_codec {
+            match video_codec {
+                VideoCodec::H264 | VideoCodec::H265 => {
+                    if self.cq.is_some() {
+                        bail!("--cq is not used with {video_codec}");
+                    }
                 }
-            }
 
-            VideoCodec::Av1 | VideoCodec::Hevc => {
-                if self.crf.is_some() {
-                    bail!("--crf is not used with {}", self.video_codec);
+                VideoCodec::Av1 | VideoCodec::Hevc => {
+                    if self.crf.is_some() {
+                        bail!("--crf is not used with {video_codec}");
+                    }
                 }
             }
         }

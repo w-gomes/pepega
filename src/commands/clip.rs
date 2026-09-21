@@ -2,12 +2,14 @@ use std::path::{Path, PathBuf};
 
 use anyhow::{anyhow, bail, Result};
 
-use crate::args::EncodeOpt;
+use crate::args::{EncodeOpt, VideoCodec};
 use crate::ffmpeg::ffmpeg;
 use crate::utils::generate_output_with;
 
 const CLIP: &str = "CLIP";
 const CLIP_GIF: &str = "CLIP_GIF";
+
+const DEFAULT_VIDEOCODEC: VideoCodec = VideoCodec::H264;
 
 pub fn clip(
     dry_run: bool,
@@ -15,7 +17,7 @@ pub fn clip(
     output: Option<PathBuf>,
     start: &str,
     end: &str,
-    encode_opt: &EncodeOpt,
+    encode_opt: Option<EncodeOpt>,
 ) -> Result<()> {
     if !input.is_file() {
         bail!("Input must be a file");
@@ -27,21 +29,41 @@ pub fn clip(
     )?;
 
     let mut args = Vec::new();
-    let output = output.with_extension(encode_opt.video_format.to_string());
-    args.extend_from_slice(&[
-        "-ss".to_string(),
-        start.to_string(),
-        "-accurate_seek".to_string(),
-        "-i".to_string(),
-        input.display().to_string(),
-        "-to".to_string(),
-        end.to_string(),
-        "-c:v".to_string(),
-        encode_opt.video_codec.to_string(),
-        "-c:a".to_string(),
-        encode_opt.audio_codec.to_string(),
-        output.display().to_string(),
-    ]);
+
+    if let Some(encode_opt) = encode_opt {
+        let output = output.with_extension(encode_opt.video_format.to_string());
+        args.extend_from_slice(&[
+            "-ss".to_string(),
+            start.to_string(),
+            "-accurate_seek".to_string(),
+            "-i".to_string(),
+            input.display().to_string(),
+            "-to".to_string(),
+            end.to_string(),
+            "-c:v".to_string(),
+            encode_opt
+                .video_codec
+                .unwrap_or(DEFAULT_VIDEOCODEC)
+                .to_string(),
+            "-c:a".to_string(),
+            encode_opt.audio_codec.to_string(),
+            output.display().to_string(),
+        ]);
+    } else {
+        let output = output.with_extension("mp4");
+        args.extend_from_slice(&[
+            "-ss".to_string(),
+            start.to_string(),
+            "-i".to_string(),
+            input.display().to_string(),
+            "-to".to_string(),
+            end.to_string(),
+            "-c".to_string(),
+            "copy".to_string(),
+            "-copyts".to_string(),
+            output.display().to_string(),
+        ]);
+    }
 
     if dry_run {
         let args = args.join(" ");
