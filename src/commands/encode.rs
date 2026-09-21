@@ -3,7 +3,7 @@ use std::path::{Path, PathBuf};
 use anyhow::{anyhow, Result};
 use rayon::prelude::*;
 
-use crate::args::{EncodeOpt, VideoCodec};
+use crate::args::{EncodeOpt, VideoCodec, DEFAULT_CQ, DEFAULT_CRF};
 use crate::ffmpeg::ffmpeg;
 use crate::utils::{generate_multiple_inputs_and_outputs, generate_output_with};
 
@@ -11,8 +11,6 @@ const ENCODE: &str = "ENCODE";
 const ENCODE_YOUTUBE: &str = "ENCODE_YOUTUBE";
 const ENCODE_UPSCALE: &str = "ENCODE_UPSCALE";
 
-const DEFAULT_CRF: u64 = 23;
-const DEFAULT_CQ: u64 = 19;
 const DEFAULT_VIDEOCODEC: VideoCodec = VideoCodec::H264;
 
 pub fn encode(
