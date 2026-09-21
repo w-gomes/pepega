@@ -299,7 +299,7 @@ pub fn encode_opt_to_vec(encode_opt: &EncodeOpt) -> Vec<String> {
             vec![
                 enc.to_string(),
                 "-cq".to_string(),
-                encode_opt.cq.to_string(),
+                encode_opt.cq.unwrap_or(19).to_string(),
                 "-preset".to_string(),
                 "p1".to_string(),
             ]
@@ -308,7 +308,7 @@ pub fn encode_opt_to_vec(encode_opt: &EncodeOpt) -> Vec<String> {
             vec![
                 enc.to_string(),
                 "-crf".to_string(),
-                encode_opt.crf.to_string(),
+                encode_opt.crf.unwrap_or(23).to_string(),
                 "-preset".to_string(),
                 "ultrafast".to_string(),
             ]

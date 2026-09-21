@@ -6,7 +6,7 @@ mod commands;
 mod ffmpeg;
 mod utils;
 
-use crate::args::{AudioArgs, Commands, Opts, VideoArgs, VideoCmd};
+use crate::args::{AudioArgs, Commands, EncodeCommands, Opts, VideoArgs, VideoCommands};
 use crate::commands::{
     audio, clip, clip_gif, encode, encode_upscale, encode_youtube, merge, video,
 };
@@ -24,19 +24,16 @@ fn main() -> Result<()> {
             audio(opts.dry_run, &opts.input, opts.output, &audio_codec)?;
         }
 
-        Commands::Video(VideoArgs {
-            flip,
-            encode_opt,
-            youtube,
-            upscale,
-            video_cmd,
-        }) => {
-            if let Some(video_cmd) = video_cmd {
-                match video_cmd {
-                    VideoCmd::Clip { start, end, gif } => {
-                        if gif {
-                            clip_gif(opts.dry_run, &opts.input, opts.output, &start, &end)?;
-                        } else {
+        Commands::Video(VideoArgs { video_subcommand }) => match video_subcommand {
+            VideoCommands::Encode {
+                encode_opt,
+                encode_subcommand,
+            } => {
+                encode_opt.check_quality_flags()?;
+
+                if let Some(encode_subcommand) = encode_subcommand {
+                    match encode_subcommand {
+                        EncodeCommands::Clip { start, end } => {
                             clip(
                                 opts.dry_run,
                                 &opts.input,
@@ -46,21 +43,30 @@ fn main() -> Result<()> {
                                 &encode_opt,
                             )?;
                         }
+                        EncodeCommands::Flip => {
+                            encode(opts.dry_run, &opts.input, opts.output, &encode_opt, true)?;
+                        }
+                        EncodeCommands::Merge => {
+                            merge(opts.dry_run, &opts.input, opts.output, &encode_opt)?;
+                        }
                     }
-                    VideoCmd::Merge => {
-                        merge(opts.dry_run, &opts.input, opts.output, &encode_opt)?;
-                    }
-                    VideoCmd::Create { framerate } => {
-                        video(opts.dry_run, &opts.input, opts.output, framerate)?;
-                    }
+                } else {
+                    encode(opts.dry_run, &opts.input, opts.output, &encode_opt, false)?;
                 }
-            } else if youtube {
-                encode_youtube(opts.dry_run, &opts.input, opts.output, flip)?;
-            } else if upscale {
-                encode_upscale(opts.dry_run, &opts.input, opts.output, flip)?;
-            } else {
-                encode(opts.dry_run, &opts.input, opts.output, &encode_opt, flip)?;
             }
+            VideoCommands::Youtube => {
+                encode_youtube(opts.dry_run, &opts.input, opts.output, false)?;
+            }
+            VideoCommands::Upscale => {
+                encode_upscale(opts.dry_run, &opts.input, opts.output, false)?;
+            }
+            VideoCommands::Gif { start, end } => {
+                clip_gif(opts.dry_run, &opts.input, opts.output, &start, &end)?;
+            }
+        },
+
+        Commands::Image { framerate } => {
+            video(opts.dry_run, &opts.input, opts.output, framerate)?;
         }
     }
 
