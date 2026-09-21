@@ -33,10 +33,11 @@ pub enum Commands {
     /// Extract the audio stream from a video file.
     Audio(AudioArgs),
 
-    /// Common tasks on video.
+    /// Common tasks on video: Encode, Youtube, Upscale, Gif.
+    /// Run pepega.exe video --help for more information
     Video(VideoArgs),
 
-    /// Create a video from images.
+    /// Create a video from images inside a directory.
     Image {
         /// Set the framerate (duration), between 1s and 15s.
         #[arg(
@@ -108,7 +109,7 @@ pub enum EncodeCommands {
     /// Flip (rotate) video clockwise 90 degrees
     Flip,
 
-    /// Merge two or more videos
+    /// Merge two or more videos inside a directory
     #[command(alias = "concat")]
     Merge,
 }
@@ -127,10 +128,8 @@ pub struct EncodeOpt {
     #[arg(short = 'F', long, value_enum, default_value_t = VideoFormat::Mp4)]
     pub video_format: VideoFormat,
 
-    /// Constant Rate Factor (CRF): [0..=51]
-    /// 0 is lossless, 51 is the worst quality possible.
+    /// Constant Rate Factor (CRF): [0..=51] [default: 23]
     /// Only works with H264 and H265
-    /// The default is 23
     #[arg(
         long,
         value_name = "CRF",
@@ -139,10 +138,8 @@ pub struct EncodeOpt {
     )]
     pub crf: Option<u64>,
 
-    /// Constant Quality: [1..=63]
-    /// 1 is lossless, 63 is the worst quality possible.
+    /// Constant Quality: [1..=63] [default: 19]
     /// Only works with AV1 and HVEC
-    /// The default is 19
     #[arg(long,
           value_name = "CQ",
           value_parser = clap::value_parser!(u64).range(1..=63),
