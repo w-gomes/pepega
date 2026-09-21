@@ -21,14 +21,15 @@ pub fn video(dry_run: bool, input: &Path, output: Option<PathBuf>, framerate: u6
 
     let mut args = Vec::new();
 
-    let (_, temp_list, total_images) = temp_list_for_video(input, framerate)?;
+    let (temp_file, total_images) = temp_list_for_video(input, framerate)?;
+    let temp_file = temp_file.path().display().to_string();
     args.extend_from_slice(&[
         "-f".to_string(),
         "concat".to_string(),
         "-safe".to_string(),
         "0".to_string(),
         "-i".to_string(),
-        temp_list.display().to_string(),
+        temp_file,
     ]);
 
     args.extend_from_slice(&[
