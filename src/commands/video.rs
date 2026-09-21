@@ -5,8 +5,6 @@ use std::path::{Path, PathBuf};
 use crate::ffmpeg::ffmpeg;
 use crate::utils::{generate_output_with, temp_list_for_video};
 
-// TODO: -tune stillimage
-
 const IMAGES_TO_VIDEO: &str = "IMAGES_TO_VIDEO";
 
 pub fn video(dry_run: bool, input: &Path, output: Option<PathBuf>, framerate: u64) -> Result<()> {
