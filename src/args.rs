@@ -1,5 +1,6 @@
 use std::path::PathBuf;
 
+use anyhow::{bail, Result};
 use clap::{Args, Parser, Subcommand, ValueEnum};
 
 #[derive(Parser, Debug)]
@@ -34,70 +35,9 @@ pub enum Commands {
 
     /// Common tasks on video.
     Video(VideoArgs),
-}
 
-#[derive(Args, Debug)]
-pub struct AudioArgs {
-    /// Audio codec options
-    #[arg(short = 'A', long, value_enum, default_value_t = AudioCodec::Mp3)]
-    pub audio_codec: AudioCodec,
-}
-
-#[derive(Args, Debug)]
-pub struct VideoArgs {
-    /// Flip (rotate) video clockwise 90 degrees
-    #[arg(
-        short,
-        long,
-        alias = "rotate",
-        default_value_t = false,
-        conflicts_with_all = ["youtube", "upscale"]
-    )]
-    pub flip: bool,
-
-    /// Encoding options
-    #[command(flatten)]
-    pub encode_opt: EncodeOpt,
-
-    /// Transcode optimized for `Youtube`
-    #[arg(short = 'Y', long, default_value_t = false, conflicts_with = "upscale")]
-    pub youtube: bool,
-
-    /// Upscale and transcode video for higher peak quality on platforms like `Youtube`.
-    /// Uses `FFmpeg`'s recommended settings for upscalling
-    ///
-    /// See for more detail `<https://trac.ffmpeg.org/wiki/Encode/YouTube#Upscalingvideoforhigherpeakquality>`
-    #[arg(short = 'U', long, default_value_t = false, conflicts_with = "youtube")]
-    pub upscale: bool,
-
-    /// Extra options for video
-    #[command(subcommand)]
-    pub video_cmd: Option<VideoCmd>,
-}
-
-#[derive(Subcommand, Debug)]
-pub enum VideoCmd {
-    /// Clip (trim) a video with START and END timestamps
-    #[command(alias = "trim")]
-    Clip {
-        /// The start of the clip
-        start: String,
-
-        /// The end of the clip
-        end: String,
-
-        /// Output as `GIF`
-        /// Note: `GIF` file is large even for short clips.
-        #[arg(long, default_value_t = false)]
-        gif: bool,
-    },
-
-    /// Merge two or more videos
-    #[command(alias = "concat")]
-    Merge,
-
-    /// Create a video from images
-    Create {
+    /// Create a video from images.
+    Image {
         /// Set the framerate (duration), between 1s and 15s.
         #[arg(
             long,
@@ -108,6 +48,69 @@ pub enum VideoCmd {
         )]
         framerate: u64,
     },
+}
+
+#[derive(Args, Debug)]
+pub struct AudioArgs {
+    /// Options to encode the audio stream if encoding.
+    #[arg(short = 'A', long, value_enum, default_value_t = AudioCodec::Mp3)]
+    pub audio_codec: AudioCodec,
+}
+
+#[derive(Args, Debug)]
+pub struct VideoArgs {
+    #[command(subcommand)]
+    pub video_subcommand: VideoCommands,
+}
+
+#[derive(Subcommand, Debug)]
+pub enum VideoCommands {
+    /// Encode options
+    Encode {
+        #[command(flatten)]
+        encode_opt: EncodeOpt,
+
+        #[command(subcommand)]
+        encode_subcommand: Option<EncodeCommands>,
+    },
+
+    /// Transcode optimized for `Youtube`
+    Youtube,
+
+    /// Upscale and transcode video for higher peak quality on platforms like `Youtube`.
+    /// Uses `FFmpeg`'s recommended settings for upscalling
+    ///
+    /// See for more detail `<https://trac.ffmpeg.org/wiki/Encode/YouTube#Upscalingvideoforhigherpeakquality>`
+    Upscale,
+
+    /// Create a gif
+    Gif {
+        /// The start of the gif
+        start: String,
+
+        /// The end of the gif
+        end: String,
+    },
+}
+
+#[derive(Subcommand, Debug)]
+pub enum EncodeCommands {
+    /// Clip (trim) a video with START and END timestamps
+    #[command(alias = "trim")]
+    Clip {
+        /// The start of the clip
+        start: String,
+
+        /// The end of the clip
+        end: String,
+    },
+
+    /// Flip (rotate) video clockwise 90 degrees
+    Flip,
+
+    /// Merge two or more videos
+    #[command(alias = "concat")]
+    Merge,
 }
 
 #[derive(Args, Debug, Clone)]
@@ -126,25 +129,44 @@ pub struct EncodeOpt {
 
     /// Constant Rate Factor (CRF): [0..=51]
     /// 0 is lossless, 51 is the worst quality possible.
-    /// Only works with H264
+    /// Only works with H264 and H265
+    /// The default is 23
     #[arg(
         long,
         value_name = "CRF",
-        default_value_t = 23,
         value_parser = clap::value_parser!(u64).range(0..=51),
         conflicts_with = "cq"
     )]
-    pub crf: u64,
+    pub crf: Option<u64>,
 
     /// Constant Quality: [1..=63]
     /// 1 is lossless, 63 is the worst quality possible.
-    /// Only works with H265, AV1 and HVEC
+    /// Only works with AV1 and HVEC
+    /// The default is 19
     #[arg(long,
           value_name = "CQ",
-          default_value_t = 19,
           value_parser = clap::value_parser!(u64).range(1..=63),
     )]
-    pub cq: u64,
+    pub cq: Option<u64>,
+}
+
+impl EncodeOpt {
+    pub fn check_quality_flags(&self) -> Result<()> {
+        match self.video_codec {
+            VideoCodec::H264 | VideoCodec::H265 => {
+                if self.cq.is_some() {
+                    bail!("--cq is not used with {}", self.video_codec);
+                }
+            }
+
+            VideoCodec::Av1 | VideoCodec::Hevc => {
+                if self.crf.is_some() {
+                    bail!("--crf is not used with {}", self.video_codec);
+                }
+            }
+        }
+        Ok(())
+    }
 }
 
 #[derive(ValueEnum, Debug, Clone, strum::Display)]
