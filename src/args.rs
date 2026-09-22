@@ -19,6 +19,10 @@ pub struct Opts {
     #[arg(long, aliases = ["dry", "test"], default_value_t = false, global = true)]
     pub dry_run: bool,
 
+    /// Set ffmpeg log level to verbose. Defaults to -loglevel error.
+    #[arg(long, default_value_t = false, global = true)]
+    pub verbose: bool,
+
     /// Input: either a single file or a directory
     #[arg(short, long)]
     pub input: PathBuf,
