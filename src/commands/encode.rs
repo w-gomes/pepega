@@ -1,11 +1,13 @@
 use std::path::{Path, PathBuf};
 
 use anyhow::{anyhow, Result};
-use rayon::prelude::*;
 
 use crate::args::{EncodeOpt, VideoCodec, DEFAULT_CQ, DEFAULT_CRF};
-use crate::ffmpeg::ffmpeg;
-use crate::utils::{generate_multiple_inputs_and_outputs, generate_output_with};
+use crate::ffmpeg::{try_run_ffmpeg, try_run_ffmpeg_par};
+use crate::utils::{
+    generate_flags_for_loglevel, generate_multiple_inputs_and_outputs, generate_output,
+};
+use crate::Config;
 
 const ENCODE: &str = "ENCODE";
 const ENCODE_YOUTUBE: &str = "ENCODE_YOUTUBE";
@@ -13,68 +15,44 @@ const ENCODE_UPSCALE: &str = "ENCODE_UPSCALE";
 
 const DEFAULT_VIDEOCODEC: VideoCodec = VideoCodec::H264;
 
-pub fn encode(
-    dry_run: bool,
-    input: &Path,
-    output: Option<PathBuf>,
-    encode_opt: EncodeOpt,
-    flip: bool,
-) -> Result<()> {
+pub fn encode(config: Config, encode_opt: EncodeOpt, flip: bool) -> Result<()> {
+    let Config {
+        input,
+        output,
+        dry_run,
+        verbose,
+    } = config;
+
     if input.is_file() {
-        println!("Running encode on a single file");
-        let args = single_file(input, output, Some(encode_opt), flip)?;
-
-        if dry_run {
-            let args = args.join(" ");
-            println!("ffmpeg {args}");
-        } else {
-            ffmpeg(args)?;
-        }
+        let args = single_file(&input, output, Some(encode_opt), flip, verbose)?;
+        println!("Encoding a single file");
+        try_run_ffmpeg(dry_run, args)?;
     } else if input.is_dir() {
-        println!("Running encode on multiple files");
-        let args = multiple_file(input, Some(encode_opt), "ENCODE", flip)?;
-        println!("{} files", args.len());
-
-        if dry_run {
-            for inner in args {
-                let args = inner.join(" ");
-                println!("ffmpeg {args}");
-            }
-        } else {
-            let mut num_errors = 0;
-            let results = args
-                .into_par_iter()
-                .map(ffmpeg)
-                .collect::<Vec<Result<()>>>();
-
-            for result in results {
-                if let Err(error) = result {
-                    num_errors += 1;
-                    eprintln!("{error:#}");
-                }
-            }
-            println!("ffmpeg failed to encode {num_errors} files");
-        }
+        let args = multiple_file(&input, Some(encode_opt), "ENCODE", flip, verbose)?;
+        println!("Encoding multiple files");
+        try_run_ffmpeg_par(dry_run, args);
     }
 
     Ok(())
 }
 
-pub fn encode_youtube(
-    dry_run: bool,
-    input: &Path,
-    output: Option<PathBuf>,
-    flip: bool,
-) -> Result<()> {
+pub fn encode_youtube(config: Config, flip: bool) -> Result<()> {
+    let Config {
+        input,
+        output,
+        dry_run,
+        verbose,
+    } = config;
+
     if input.is_file() {
-        println!("Running encode on a single file");
         let output = output.clone().map_or_else(
-            || generate_output_with(input, ENCODE_YOUTUBE),
+            || generate_output(&input, ENCODE_YOUTUBE),
             |_| output.ok_or_else(|| anyhow!("Unable to get the output file")),
         )?;
 
         let mut args = Vec::new();
-        args.extend(with_flip_or_default(input, flip));
+        args.extend(generate_flags_for_loglevel(verbose));
+        args.extend(with_flip_or_default(&input, flip));
         args.extend_from_slice(&[
             "-c:v".to_string(),
             "libx264".to_string(),
@@ -93,19 +71,15 @@ pub fn encode_youtube(
         let output = output.with_extension("mp4");
         args.push(output.display().to_string());
 
-        if dry_run {
-            let args = args.join(" ");
-            println!("ffmpeg {args}");
-        } else {
-            ffmpeg(args)?;
-        }
+        println!("Encoding a single file for youtube");
+        try_run_ffmpeg(dry_run, args)?;
     } else if input.is_dir() {
-        println!("Running encode on multiple files");
-        let inputs_outputs_pair = generate_multiple_inputs_and_outputs(input, ENCODE_YOUTUBE)?;
+        let inputs_outputs_pair = generate_multiple_inputs_and_outputs(&input, ENCODE_YOUTUBE)?;
 
         let mut args = Vec::new();
         for (input, output) in inputs_outputs_pair {
             let mut inner_args = Vec::new();
+            inner_args.extend(generate_flags_for_loglevel(verbose));
             inner_args.extend(with_flip_or_default(&input, flip));
             inner_args.extend_from_slice(&[
                 "-c:v".to_string(),
@@ -126,47 +100,30 @@ pub fn encode_youtube(
             args.push(inner_args);
         }
 
-        println!("{} files", args.len());
-
-        if dry_run {
-            for inner in args {
-                let args = inner.join(" ");
-                println!("ffmpeg {args}");
-            }
-        } else {
-            let mut num_errors = 0;
-            let results = args
-                .into_par_iter()
-                .map(ffmpeg)
-                .collect::<Vec<Result<()>>>();
-
-            for result in results {
-                if let Err(error) = result {
-                    num_errors += 1;
-                    eprintln!("{error:#}");
-                }
-            }
-            println!("ffmpeg failed to encode {num_errors} files");
-        }
+        println!("Encoding multiple files for youtube");
+        try_run_ffmpeg_par(dry_run, args);
     }
+
     Ok(())
 }
 
-pub fn encode_upscale(
-    dry_run: bool,
-    input: &Path,
-    output: Option<PathBuf>,
-    flip: bool,
-) -> Result<()> {
+pub fn encode_upscale(config: Config, flip: bool) -> Result<()> {
+    let Config {
+        input,
+        output,
+        dry_run,
+        verbose,
+    } = config;
+
     if input.is_file() {
-        println!("Running encode on a single file");
         let output = output.clone().map_or_else(
-            || generate_output_with(input, ENCODE_UPSCALE),
+            || generate_output(&input, ENCODE_UPSCALE),
             |_| output.ok_or_else(|| anyhow!("Unable to get the output file")),
         )?;
 
         let mut args = Vec::new();
-        args.extend(with_flip_or_default(input, flip));
+        args.extend(generate_flags_for_loglevel(verbose));
+        args.extend(with_flip_or_default(&input, flip));
         args.extend_from_slice(&[
             "-vf".to_string(),
             "scale=iw*2:ih*2:flags=neighbor".to_string(),
@@ -185,19 +142,15 @@ pub fn encode_upscale(
         let output = output.with_extension("mp4");
         args.push(output.display().to_string());
 
-        if dry_run {
-            let args = args.join(" ");
-            println!("ffmpeg {args}");
-        } else {
-            ffmpeg(args)?;
-        }
+        println!("Encoding a single file upscaled");
+        try_run_ffmpeg(dry_run, args)?;
     } else if input.is_dir() {
-        println!("Running encode on multiple files");
-        let inputs_outputs_pair = generate_multiple_inputs_and_outputs(input, ENCODE_UPSCALE)?;
+        let inputs_outputs_pair = generate_multiple_inputs_and_outputs(&input, ENCODE_UPSCALE)?;
 
         let mut args = Vec::new();
         for (input, output) in inputs_outputs_pair {
             let mut inner_args = Vec::new();
+            inner_args.extend(generate_flags_for_loglevel(verbose));
             inner_args.extend(with_flip_or_default(&input, flip));
             inner_args.extend_from_slice(&[
                 "-vf".to_string(),
@@ -218,29 +171,10 @@ pub fn encode_upscale(
             args.push(inner_args);
         }
 
-        println!("{} files", args.len());
-
-        if dry_run {
-            for inner in args {
-                let args = inner.join(" ");
-                println!("ffmpeg {args}");
-            }
-        } else {
-            let mut num_errors = 0;
-            let results = args
-                .into_par_iter()
-                .map(ffmpeg)
-                .collect::<Vec<Result<()>>>();
-
-            for result in results {
-                if let Err(error) = result {
-                    num_errors += 1;
-                    eprintln!("{error:#}");
-                }
-            }
-            println!("ffmpeg failed to encode {num_errors} files");
-        }
+        println!("Encoding multiple files upscaled");
+        try_run_ffmpeg_par(dry_run, args);
     }
+
     Ok(())
 }
 
@@ -249,15 +183,17 @@ fn single_file(
     output: Option<PathBuf>,
     encode_opt: Option<EncodeOpt>,
     flip: bool,
+    verbose: bool,
 ) -> Result<Vec<String>> {
     let output = output.clone().map_or_else(
-        || generate_output_with(input, ENCODE),
+        || generate_output(input, ENCODE),
         |_| output.ok_or_else(|| anyhow!("Unable to get the output file")),
     )?;
 
     let encode_opt = encode_opt.unwrap_or_default();
 
     let mut args = Vec::new();
+    args.extend(generate_flags_for_loglevel(verbose));
     args.extend(with_flip_or_default(input, flip));
     args.extend(encode_opt_to_vec(&encode_opt));
     args.extend_from_slice(&["-c:a".to_string(), encode_opt.audio_codec.to_string()]);
@@ -273,6 +209,7 @@ fn multiple_file(
     encode_opt: Option<EncodeOpt>,
     command_str: &str,
     flip: bool,
+    verbose: bool,
 ) -> Result<Vec<Vec<String>>> {
     let mut args = Vec::new();
 
@@ -281,6 +218,7 @@ fn multiple_file(
 
     for (input, output) in inputs_ouputs_pair {
         let mut inner_args = Vec::new();
+        inner_args.extend(generate_flags_for_loglevel(verbose));
         inner_args.extend(with_flip_or_default(&input, flip));
         inner_args.extend(encode_opt_to_vec(&encode_opt));
         inner_args.extend_from_slice(&["-c:a".to_string(), encode_opt.audio_codec.to_string()]);

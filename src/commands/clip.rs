@@ -1,34 +1,34 @@
-use std::path::{Path, PathBuf};
-
 use anyhow::{anyhow, bail, Result};
 
 use crate::args::{EncodeOpt, VideoCodec};
-use crate::ffmpeg::ffmpeg;
-use crate::utils::generate_output_with;
+use crate::ffmpeg::try_run_ffmpeg;
+use crate::utils::{generate_flags_for_loglevel, generate_output};
+use crate::Config;
 
 const CLIP: &str = "CLIP";
 const CLIP_GIF: &str = "CLIP_GIF";
 
 const DEFAULT_VIDEOCODEC: VideoCodec = VideoCodec::H264;
 
-pub fn clip(
-    dry_run: bool,
-    input: &Path,
-    output: Option<PathBuf>,
-    start: &str,
-    end: &str,
-    encode_opt: Option<EncodeOpt>,
-) -> Result<()> {
+pub fn clip(config: Config, start: &str, end: &str, encode_opt: Option<EncodeOpt>) -> Result<()> {
+    let Config {
+        input,
+        output,
+        dry_run,
+        verbose,
+    } = config;
+
     if !input.is_file() {
         bail!("Input must be a file");
     }
 
     let output = output.clone().map_or_else(
-        || generate_output_with(input, CLIP),
+        || generate_output(&input, CLIP),
         |_| output.ok_or_else(|| anyhow!("Unable to get the output file")),
     )?;
 
     let mut args = Vec::new();
+    args.extend(generate_flags_for_loglevel(verbose));
 
     if let Some(encode_opt) = encode_opt {
         let output = output.with_extension(encode_opt.video_format.to_string());
@@ -65,33 +65,32 @@ pub fn clip(
         ]);
     }
 
-    if dry_run {
-        let args = args.join(" ");
-        println!("ffmpeg {args}");
-    } else {
-        ffmpeg(args)?;
-    }
+    println!("Clipping a video");
+    try_run_ffmpeg(dry_run, args)?;
 
     Ok(())
 }
 
-pub fn clip_gif(
-    dry_run: bool,
-    input: &Path,
-    output: Option<PathBuf>,
-    start: &str,
-    end: &str,
-) -> Result<()> {
+pub fn clip_gif(config: Config, start: &str, end: &str) -> Result<()> {
+    let Config {
+        input,
+        output,
+        dry_run,
+        verbose,
+    } = config;
+
     if !input.is_file() {
         bail!("Input must be a file");
     }
 
     let output = output.clone().map_or_else(
-        || generate_output_with(input, CLIP_GIF),
+        || generate_output(&input, CLIP_GIF),
         |_| output.ok_or_else(|| anyhow!("Unable to get the output file")),
     )?;
 
     let mut args = Vec::new();
+
+    args.extend(generate_flags_for_loglevel(verbose));
     args.extend_from_slice(&[
         "-i".to_string(),
         input.display().to_string(),
@@ -107,12 +106,8 @@ pub fn clip_gif(
         output.with_extension("gif").display().to_string(),
     ]);
 
-    if dry_run {
-        let args = args.join(" ");
-        println!("ffmpeg {args}");
-    } else {
-        ffmpeg(args)?;
-    }
+    println!("Clipping a video and saving as gif");
+    try_run_ffmpeg(dry_run, args)?;
 
     Ok(())
 }

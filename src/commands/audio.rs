@@ -1,29 +1,31 @@
-use std::path::{Path, PathBuf};
-
 use anyhow::{anyhow, bail, Result};
 
 use crate::args::AudioCodec;
-use crate::ffmpeg::ffmpeg;
-use crate::utils::generate_output_with;
+use crate::ffmpeg::try_run_ffmpeg;
+use crate::utils::{generate_flags_for_loglevel, generate_output};
+use crate::Config;
 
 const AUDIO: &str = "AUDIO";
 
-pub fn audio(
-    dry_run: bool,
-    input: &Path,
-    output: Option<PathBuf>,
-    audio_codec: &AudioCodec,
-) -> Result<()> {
+pub fn audio(config: Config, audio_codec: &AudioCodec) -> Result<()> {
+    let Config {
+        input,
+        output,
+        dry_run,
+        verbose,
+    } = config;
+
     if !input.is_file() {
         bail!("Input must be a file");
     }
 
     let output = output.clone().map_or_else(
-        || generate_output_with(input, AUDIO),
+        || generate_output(&input, AUDIO),
         |_| output.ok_or_else(|| anyhow!("Unable to get the output file")),
     )?;
 
     let mut args = Vec::new();
+    args.extend(generate_flags_for_loglevel(verbose));
     args.extend_from_slice(&[
         "-i".to_string(),
         input.display().to_string(),
@@ -65,12 +67,8 @@ pub fn audio(
         }
     }
 
-    if dry_run {
-        let args = args.join(" ");
-        println!("ffmpeg {args}");
-    } else {
-        ffmpeg(args)?;
-    }
+    println!("Extracting audio...");
+    try_run_ffmpeg(dry_run, args)?;
 
     Ok(())
 }

@@ -9,7 +9,8 @@ use chrono::Local;
 use tempfile::{Builder, NamedTempFile};
 use walkdir::{DirEntry, WalkDir};
 
-pub fn merge_with_inputs_and_filters(dir: &Path) -> Result<(Vec<String>, String)> {
+// Create a list of pair: -i, input and the filters for it
+pub fn generate_inputs_and_filters(dir: &Path) -> Result<(Vec<String>, String)> {
     let mut inputs = Vec::new();
     let mut filters = String::new();
 
@@ -76,7 +77,7 @@ pub fn temp_list_for_video(dir: &Path, framerate: u64) -> Result<(NamedTempFile,
 }
 
 // Generate an output name
-pub fn generate_output_with(path: &Path, command_str: &str) -> Result<PathBuf> {
+pub fn generate_output(path: &Path, command_str: &str) -> Result<PathBuf> {
     let original_input = path.to_path_buf();
     let Some(file_name) = original_input.file_name() else {
         return Err(anyhow!("Error extracting file name from Input"));
@@ -112,7 +113,7 @@ pub fn generate_multiple_inputs_and_outputs(
         })
     {
         let input = entry.path();
-        let output = generate_output_with(input, command_str)?;
+        let output = generate_output(input, command_str)?;
 
         input_output_pair.push((input.to_path_buf(), output));
     }
@@ -125,4 +126,12 @@ fn is_hidden(entry: &DirEntry) -> bool {
         .file_name()
         .to_str()
         .is_some_and(|s| s.starts_with('.'))
+}
+
+pub fn generate_flags_for_loglevel(verbose: bool) -> Vec<String> {
+    if verbose {
+        vec!["-loglevel".to_string(), "info".to_string()]
+    } else {
+        vec!["-loglevel".to_string(), "error".to_string()]
+    }
 }

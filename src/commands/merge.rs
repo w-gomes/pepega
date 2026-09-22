@@ -1,33 +1,35 @@
 use anyhow::{anyhow, bail, Result};
 
-use std::path::{Path, PathBuf};
-
 use crate::args::EncodeOpt;
 use crate::commands::encode::encode_opt_to_vec;
-use crate::ffmpeg::ffmpeg;
-use crate::utils::{generate_output_with, merge_with_inputs_and_filters};
+use crate::ffmpeg::try_run_ffmpeg;
+use crate::utils::{generate_flags_for_loglevel, generate_inputs_and_filters, generate_output};
+use crate::Config;
 
 const MERGE: &str = "MERGE";
 
-pub fn merge(
-    dry_run: bool,
-    input: &Path,
-    output: Option<PathBuf>,
-    encode_opt: &EncodeOpt,
-) -> Result<()> {
+pub fn merge(config: Config, encode_opt: &EncodeOpt) -> Result<()> {
+    let Config {
+        input,
+        output,
+        dry_run,
+        verbose,
+    } = config;
+
     if !input.is_dir() {
         bail!("Input must be a directory");
     }
 
     let output = output.clone().map_or_else(
-        || generate_output_with(input, MERGE),
+        || generate_output(&input, MERGE),
         |_| output.ok_or_else(|| anyhow!("Unable to get the output file")),
     )?;
 
     let mut args = Vec::new();
 
-    let (inputs, filters) = merge_with_inputs_and_filters(input)?;
+    let (inputs, filters) = generate_inputs_and_filters(&input)?;
 
+    args.extend(generate_flags_for_loglevel(verbose));
     args.extend(inputs);
     args.extend_from_slice(&[
         "-filter_complex".to_string(),
@@ -42,12 +44,8 @@ pub fn merge(
     let output = output.with_extension(encode_opt.video_format.to_string());
     args.push(output.display().to_string());
 
-    if dry_run {
-        let args = args.join(" ");
-        println!("ffmpeg {args}");
-    } else {
-        ffmpeg(args)?;
-    }
+    println!("Merging multiple videos");
+    try_run_ffmpeg(dry_run, args)?;
 
     Ok(())
 }
