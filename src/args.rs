@@ -235,8 +235,10 @@ pub enum AudioCodec {
 
 #[derive(ValueEnum, Debug, Clone, strum::Display)]
 pub enum VideoFormat {
+    /// `mp4` MP4 container
     #[strum(to_string = "mp4")]
     Mp4,
+    /// `mkv` Matroska container
     #[strum(to_string = "mkv")]
     Mkv,
 }
