@@ -222,7 +222,7 @@ pub enum VideoCodec {
 
 #[derive(ValueEnum, Debug, Clone, strum::Display)]
 pub enum AudioCodec {
-    /// `aac` Adcanced Audio Coding codec
+    /// `aac` Advanced Audio Coding codec
     #[strum(to_string = "aac")]
     Aac,
     /// `mp3` MP3 codec
