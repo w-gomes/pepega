@@ -2,7 +2,7 @@ use anyhow::{Result, bail};
 
 use crate::args::Config;
 use crate::ffmpeg::try_run_ffmpeg;
-use crate::utils::{generate_output, set_flags_for_loglevel, temp_list_for_video};
+use crate::utils::{get_or_generate_output, set_flags_for_loglevel, temp_list_for_video};
 
 const IMAGES_TO_VIDEO: &str = "IMAGES_TO_VIDEO";
 
@@ -18,7 +18,7 @@ pub fn video(config: Config, framerate: u64) -> Result<()> {
         bail!("Input must be a directory");
     }
 
-    let output = output.map_or_else(|| generate_output(&input, IMAGES_TO_VIDEO), Ok)?;
+    let output = get_or_generate_output(&input, output, IMAGES_TO_VIDEO)?;
 
     let mut args = Vec::new();
     args.extend(set_flags_for_loglevel(verbose));

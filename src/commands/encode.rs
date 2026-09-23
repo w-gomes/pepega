@@ -4,7 +4,9 @@ use anyhow::Result;
 
 use crate::args::{Config, DEFAULT_CQ, DEFAULT_CRF, EncodeOpt, VideoCodec};
 use crate::ffmpeg::{try_run_ffmpeg, try_run_ffmpeg_par};
-use crate::utils::{generate_multiple_inputs_and_outputs, generate_output, set_flags_for_loglevel};
+use crate::utils::{
+    generate_multiple_inputs_and_outputs, get_or_generate_output, set_flags_for_loglevel,
+};
 
 const ENCODE: &str = "ENCODE";
 const ENCODE_YOUTUBE: &str = "ENCODE_YOUTUBE";
@@ -42,7 +44,7 @@ pub fn encode_youtube(config: Config, flip: bool) -> Result<()> {
     } = config;
 
     if input.is_file() {
-        let output = output.map_or_else(|| generate_output(&input, ENCODE_YOUTUBE), Ok)?;
+        let output = get_or_generate_output(&input, output, ENCODE_YOUTUBE)?;
 
         let mut args = Vec::new();
         args.extend(set_flags_for_loglevel(verbose));
@@ -110,7 +112,7 @@ pub fn encode_upscale(config: Config, flip: bool) -> Result<()> {
     } = config;
 
     if input.is_file() {
-        let output = output.map_or_else(|| generate_output(&input, ENCODE_UPSCALE), Ok)?;
+        let output = get_or_generate_output(&input, output, ENCODE_UPSCALE)?;
 
         let mut args = Vec::new();
         args.extend(set_flags_for_loglevel(verbose));
@@ -176,7 +178,7 @@ fn single_file(
     flip: bool,
     verbose: bool,
 ) -> Result<Vec<String>> {
-    let output = output.map_or_else(|| generate_output(input, ENCODE), Ok)?;
+    let output = get_or_generate_output(input, output, ENCODE)?;
 
     let encode_opt = encode_opt.unwrap_or_default();
 
