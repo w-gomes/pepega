@@ -28,6 +28,7 @@ output is optional and it will be generated automatically next to the input
 $ pepega -i input.mp4 video encode
 ```
 
+creating a clip. `00:10:00 00:30:00` also works
 ```
 $ pepega -i input.mp4 video clip 00:10:00.000 00:30:00.999
 ```
