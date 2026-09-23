@@ -51,7 +51,7 @@ pub fn try_run_ffmpeg(dry_run: bool, args: Vec<String>) -> Result<()> {
 pub fn try_run_ffmpeg_par(dry_run: bool, args: Vec<Vec<String>>) -> Result<()> {
     println!("{} files", args.len());
     if dry_run {
-        println!("dry run...");
+        println!("dry run... doing nothing.");
         for inner in args {
             let args = inner.join(" ");
             println!("ffmpeg {args}");
