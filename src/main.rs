@@ -1,5 +1,3 @@
-use std::path::PathBuf;
-
 use anyhow::{Context, Result};
 use clap::Parser;
 
@@ -8,17 +6,10 @@ mod commands;
 mod ffmpeg;
 mod utils;
 
-use crate::args::{AudioArgs, Commands, Opts, VideoArgs, VideoCommands};
+use crate::args::{AudioArgs, Commands, Config, Opts, VideoArgs, VideoCommands};
 use crate::commands::{
     audio, clip, clip_gif, encode, encode_upscale, encode_youtube, merge, video,
 };
-
-struct Config {
-    input: PathBuf,
-    output: Option<PathBuf>,
-    dry_run: bool,
-    verbose: bool,
-}
 
 fn main() -> Result<()> {
     // Set rayon to use 6 threads instead of all available threads

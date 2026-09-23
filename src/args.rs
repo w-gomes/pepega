@@ -1,10 +1,17 @@
 use std::path::PathBuf;
 
-use anyhow::{bail, Result};
+use anyhow::{Result, bail};
 use clap::{Args, Parser, Subcommand, ValueEnum};
 
 pub const DEFAULT_CRF: u64 = 23;
 pub const DEFAULT_CQ: u64 = 19;
+
+pub struct Config {
+    pub input: PathBuf,
+    pub output: Option<PathBuf>,
+    pub dry_run: bool,
+    pub verbose: bool,
+}
 
 #[derive(Parser, Debug)]
 #[command(

@@ -4,7 +4,7 @@ use std::{
     path::{Path, PathBuf},
 };
 
-use anyhow::{anyhow, Context, Result};
+use anyhow::{Context, Result, anyhow};
 use chrono::Local;
 use tempfile::{Builder, NamedTempFile};
 use walkdir::{DirEntry, WalkDir};
@@ -130,7 +130,7 @@ fn is_hidden(entry: &DirEntry) -> bool {
         .is_some_and(|s| s.starts_with('.'))
 }
 
-pub fn generate_flags_for_loglevel(verbose: bool) -> Vec<String> {
+pub fn set_flags_for_loglevel(verbose: bool) -> Vec<String> {
     if verbose {
         vec!["-loglevel".to_string(), "info".to_string()]
     } else {

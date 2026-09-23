@@ -1,9 +1,8 @@
-use anyhow::{anyhow, bail, Result};
+use anyhow::{Result, bail};
 
-use crate::args::{EncodeOpt, VideoCodec};
+use crate::args::{Config, EncodeOpt, VideoCodec};
 use crate::ffmpeg::try_run_ffmpeg;
-use crate::utils::{generate_flags_for_loglevel, generate_output};
-use crate::Config;
+use crate::utils::{generate_output, set_flags_for_loglevel};
 
 const CLIP: &str = "CLIP";
 const CLIP_GIF: &str = "CLIP_GIF";
@@ -22,13 +21,10 @@ pub fn clip(config: Config, start: &str, end: &str, encode_opt: Option<EncodeOpt
         bail!("Input must be a file");
     }
 
-    let output = output.clone().map_or_else(
-        || generate_output(&input, CLIP),
-        |_| output.ok_or_else(|| anyhow!("Unable to get the output file")),
-    )?;
+    let output = output.map_or_else(|| generate_output(&input, CLIP), Ok)?;
 
     let mut args = Vec::new();
-    args.extend(generate_flags_for_loglevel(verbose));
+    args.extend(set_flags_for_loglevel(verbose));
 
     if let Some(encode_opt) = encode_opt {
         let output = output.with_extension(encode_opt.video_format.to_string());
@@ -83,14 +79,11 @@ pub fn clip_gif(config: Config, start: &str, end: &str) -> Result<()> {
         bail!("Input must be a file");
     }
 
-    let output = output.clone().map_or_else(
-        || generate_output(&input, CLIP_GIF),
-        |_| output.ok_or_else(|| anyhow!("Unable to get the output file")),
-    )?;
+    let output = output.map_or_else(|| generate_output(&input, CLIP_GIF), Ok)?;
 
     let mut args = Vec::new();
 
-    args.extend(generate_flags_for_loglevel(verbose));
+    args.extend(set_flags_for_loglevel(verbose));
     args.extend_from_slice(&[
         "-i".to_string(),
         input.display().to_string(),
