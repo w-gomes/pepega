@@ -1,13 +1,10 @@
 use std::path::{Path, PathBuf};
 
-use anyhow::{anyhow, Result};
+use anyhow::Result;
 
-use crate::args::{EncodeOpt, VideoCodec, DEFAULT_CQ, DEFAULT_CRF};
+use crate::args::{Config, DEFAULT_CQ, DEFAULT_CRF, EncodeOpt, VideoCodec};
 use crate::ffmpeg::{try_run_ffmpeg, try_run_ffmpeg_par};
-use crate::utils::{
-    generate_flags_for_loglevel, generate_multiple_inputs_and_outputs, generate_output,
-};
-use crate::Config;
+use crate::utils::{generate_multiple_inputs_and_outputs, generate_output, set_flags_for_loglevel};
 
 const ENCODE: &str = "ENCODE";
 const ENCODE_YOUTUBE: &str = "ENCODE_YOUTUBE";
@@ -45,13 +42,10 @@ pub fn encode_youtube(config: Config, flip: bool) -> Result<()> {
     } = config;
 
     if input.is_file() {
-        let output = output.clone().map_or_else(
-            || generate_output(&input, ENCODE_YOUTUBE),
-            |_| output.ok_or_else(|| anyhow!("Unable to get the output file")),
-        )?;
+        let output = output.map_or_else(|| generate_output(&input, ENCODE_YOUTUBE), Ok)?;
 
         let mut args = Vec::new();
-        args.extend(generate_flags_for_loglevel(verbose));
+        args.extend(set_flags_for_loglevel(verbose));
         args.extend(with_flip_or_default(&input, flip));
         args.extend_from_slice(&[
             "-c:v".to_string(),
@@ -79,7 +73,7 @@ pub fn encode_youtube(config: Config, flip: bool) -> Result<()> {
         let mut args = Vec::new();
         for (input, output) in inputs_outputs_pair {
             let mut inner_args = Vec::new();
-            inner_args.extend(generate_flags_for_loglevel(verbose));
+            inner_args.extend(set_flags_for_loglevel(verbose));
             inner_args.extend(with_flip_or_default(&input, flip));
             inner_args.extend_from_slice(&[
                 "-c:v".to_string(),
@@ -116,13 +110,10 @@ pub fn encode_upscale(config: Config, flip: bool) -> Result<()> {
     } = config;
 
     if input.is_file() {
-        let output = output.clone().map_or_else(
-            || generate_output(&input, ENCODE_UPSCALE),
-            |_| output.ok_or_else(|| anyhow!("Unable to get the output file")),
-        )?;
+        let output = output.map_or_else(|| generate_output(&input, ENCODE_UPSCALE), Ok)?;
 
         let mut args = Vec::new();
-        args.extend(generate_flags_for_loglevel(verbose));
+        args.extend(set_flags_for_loglevel(verbose));
         args.extend(with_flip_or_default(&input, flip));
         args.extend_from_slice(&[
             "-vf".to_string(),
@@ -150,7 +141,7 @@ pub fn encode_upscale(config: Config, flip: bool) -> Result<()> {
         let mut args = Vec::new();
         for (input, output) in inputs_outputs_pair {
             let mut inner_args = Vec::new();
-            inner_args.extend(generate_flags_for_loglevel(verbose));
+            inner_args.extend(set_flags_for_loglevel(verbose));
             inner_args.extend(with_flip_or_default(&input, flip));
             inner_args.extend_from_slice(&[
                 "-vf".to_string(),
@@ -185,15 +176,12 @@ fn single_file(
     flip: bool,
     verbose: bool,
 ) -> Result<Vec<String>> {
-    let output = output.clone().map_or_else(
-        || generate_output(input, ENCODE),
-        |_| output.ok_or_else(|| anyhow!("Unable to get the output file")),
-    )?;
+    let output = output.map_or_else(|| generate_output(input, ENCODE), Ok)?;
 
     let encode_opt = encode_opt.unwrap_or_default();
 
     let mut args = Vec::new();
-    args.extend(generate_flags_for_loglevel(verbose));
+    args.extend(set_flags_for_loglevel(verbose));
     args.extend(with_flip_or_default(input, flip));
     args.extend(encode_opt_to_vec(&encode_opt));
     args.extend_from_slice(&["-c:a".to_string(), encode_opt.audio_codec.to_string()]);
@@ -218,7 +206,7 @@ fn multiple_file(
 
     for (input, output) in inputs_ouputs_pair {
         let mut inner_args = Vec::new();
-        inner_args.extend(generate_flags_for_loglevel(verbose));
+        inner_args.extend(set_flags_for_loglevel(verbose));
         inner_args.extend(with_flip_or_default(&input, flip));
         inner_args.extend(encode_opt_to_vec(&encode_opt));
         inner_args.extend_from_slice(&["-c:a".to_string(), encode_opt.audio_codec.to_string()]);

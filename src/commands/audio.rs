@@ -1,9 +1,8 @@
-use anyhow::{anyhow, bail, Result};
+use anyhow::{Result, bail};
 
-use crate::args::AudioCodec;
+use crate::args::{AudioCodec, Config};
 use crate::ffmpeg::try_run_ffmpeg;
-use crate::utils::{generate_flags_for_loglevel, generate_output};
-use crate::Config;
+use crate::utils::{generate_output, set_flags_for_loglevel};
 
 const AUDIO: &str = "AUDIO";
 
@@ -19,13 +18,10 @@ pub fn audio(config: Config, audio_codec: &AudioCodec) -> Result<()> {
         bail!("Input must be a file");
     }
 
-    let output = output.clone().map_or_else(
-        || generate_output(&input, AUDIO),
-        |_| output.ok_or_else(|| anyhow!("Unable to get the output file")),
-    )?;
+    let output = output.map_or_else(|| generate_output(&input, AUDIO), Ok)?;
 
     let mut args = Vec::new();
-    args.extend(generate_flags_for_loglevel(verbose));
+    args.extend(set_flags_for_loglevel(verbose));
     args.extend_from_slice(&[
         "-i".to_string(),
         input.display().to_string(),

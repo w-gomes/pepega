@@ -1,10 +1,9 @@
-use anyhow::{anyhow, bail, Result};
+use anyhow::{Result, bail};
 
-use crate::args::EncodeOpt;
+use crate::args::{Config, EncodeOpt};
 use crate::commands::encode::encode_opt_to_vec;
 use crate::ffmpeg::try_run_ffmpeg;
-use crate::utils::{generate_flags_for_loglevel, generate_inputs_and_filters, generate_output};
-use crate::Config;
+use crate::utils::{generate_inputs_and_filters, generate_output, set_flags_for_loglevel};
 
 const MERGE: &str = "MERGE";
 
@@ -20,16 +19,13 @@ pub fn merge(config: Config, encode_opt: &EncodeOpt) -> Result<()> {
         bail!("Input must be a directory");
     }
 
-    let output = output.clone().map_or_else(
-        || generate_output(&input, MERGE),
-        |_| output.ok_or_else(|| anyhow!("Unable to get the output file")),
-    )?;
+    let output = output.map_or_else(|| generate_output(&input, MERGE), Ok)?;
 
     let mut args = Vec::new();
 
     let (inputs, filters) = generate_inputs_and_filters(&input)?;
 
-    args.extend(generate_flags_for_loglevel(verbose));
+    args.extend(set_flags_for_loglevel(verbose));
     args.extend(inputs);
     args.extend_from_slice(&[
         "-filter_complex".to_string(),
