@@ -30,7 +30,7 @@ pub fn encode(config: Config, encode_opt: EncodeOpt, flip: bool) -> Result<()> {
     } else if input.is_dir() {
         let args = multiple_file(&input, Some(encode_opt), "ENCODE", flip, verbose)?;
         println!("Encoding multiple files");
-        try_run_ffmpeg_par(dry_run, args);
+        try_run_ffmpeg_par(dry_run, args)?;
     }
 
     Ok(())
@@ -101,7 +101,7 @@ pub fn encode_youtube(config: Config, flip: bool) -> Result<()> {
         }
 
         println!("Encoding multiple files for youtube");
-        try_run_ffmpeg_par(dry_run, args);
+        try_run_ffmpeg_par(dry_run, args)?;
     }
 
     Ok(())
@@ -172,7 +172,7 @@ pub fn encode_upscale(config: Config, flip: bool) -> Result<()> {
         }
 
         println!("Encoding multiple files upscaled");
-        try_run_ffmpeg_par(dry_run, args);
+        try_run_ffmpeg_par(dry_run, args)?;
     }
 
     Ok(())
