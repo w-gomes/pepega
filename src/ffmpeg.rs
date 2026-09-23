@@ -1,6 +1,8 @@
 use std::process::{Command, Stdio};
+use std::time::{Duration, Instant};
 
-use anyhow::{anyhow, Result};
+use anyhow::{anyhow, Context, Result};
+use indicatif::{HumanDuration, ParallelProgressIterator, ProgressBar, ProgressStyle};
 use rayon::prelude::*;
 
 fn ffmpeg<Iter>(args: Iter) -> Result<()>
@@ -30,14 +32,23 @@ pub fn try_run_ffmpeg(dry_run: bool, args: Vec<String>) -> Result<()> {
         println!("ffmpeg {args}");
         println!("------");
     } else {
+        let started = Instant::now();
+        let spinner = ProgressBar::new_spinner();
+        let style = ProgressStyle::default_spinner()
+            .tick_chars("⠁⠂⠄⡀⢀⠠⠐⠈ ")
+            .template("{spinner:.green} {msg}")?;
+        spinner.set_style(style);
+        spinner.enable_steady_tick(Duration::from_millis(100));
+        spinner.set_message("Waiting...");
         ffmpeg(args)?;
-        println!("Finished!");
+        spinner.finish_with_message("Finished!");
+        println!("Done in {}", HumanDuration(started.elapsed()));
     }
 
     Ok(())
 }
 
-pub fn try_run_ffmpeg_par(dry_run: bool, args: Vec<Vec<String>>) {
+pub fn try_run_ffmpeg_par(dry_run: bool, args: Vec<Vec<String>>) -> Result<()> {
     println!("{} files", args.len());
     if dry_run {
         println!("dry run...");
@@ -47,11 +58,21 @@ pub fn try_run_ffmpeg_par(dry_run: bool, args: Vec<Vec<String>>) {
         }
         println!("------");
     } else {
+        let started = Instant::now();
+        let bar = ProgressBar::new(args.len() as u64);
+        let style = ProgressStyle::default_bar()
+            .template("{spinner:.green} [{slapsed_precise}] [{bar:40.cyan/blue}] {pos}/{len} {msg}")
+            .with_context(|| anyhow!("Failed to create ProgressStyle"))?
+            .progress_chars("#>-");
+        bar.set_style(style);
+
         let mut num_errors = 0;
         let results = args
             .into_par_iter()
+            .progress_with(bar)
             .map(ffmpeg)
             .collect::<Vec<Result<()>>>();
+        println!("Finished!");
 
         for result in results {
             if let Err(error) = result {
@@ -59,7 +80,9 @@ pub fn try_run_ffmpeg_par(dry_run: bool, args: Vec<Vec<String>>) {
                 eprintln!("{error:#}");
             }
         }
-        println!("Finished!");
         println!("ffmpeg failed to encode {num_errors} files");
+        println!("Done in {}", HumanDuration(started.elapsed()));
     }
+
+    Ok(())
 }
