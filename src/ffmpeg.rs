@@ -74,15 +74,13 @@ pub fn try_run_ffmpeg_par(dry_run: bool, args: Vec<Vec<String>>) -> Result<()> {
             .collect::<Vec<Result<()>>>();
         bar.finish_with_message("Finished!");
 
-        let mut num_errors = 0;
-        for result in results {
-            if let Err(error) = result {
-                num_errors += 1;
-                eprintln!("{error:#}");
-            }
-        }
+        let error_count = results
+            .into_iter()
+            .filter_map(Result::err)
+            .inspect(|e| eprintln!("Error: {e}"))
+            .count();
 
-        println!("ffmpeg failed to encode {num_errors} files");
+        println!("ffmpeg failed to encode {error_count} files");
         println!("Done in {}", HumanDuration(started.elapsed()));
     }
 
