@@ -61,25 +61,27 @@ pub fn try_run_ffmpeg_par(dry_run: bool, args: Vec<Vec<String>>) -> Result<()> {
         let started = Instant::now();
         let bar = ProgressBar::new(args.len() as u64);
         let style = ProgressStyle::default_bar()
-            .template("{spinner:.green} [{slapsed_precise}] [{bar:40.cyan/blue}] {pos}/{len} {msg}")
+            .template("{spinner:.green} [{elapsed_precise}] [{bar:40.cyan/blue}] {pos}/{len} {msg}")
             .with_context(|| anyhow!("Failed to create ProgressStyle"))?
             .progress_chars("#>-");
         bar.set_style(style);
+        bar.enable_steady_tick(Duration::from_millis(100));
 
-        let mut num_errors = 0;
         let results = args
             .into_par_iter()
-            .progress_with(bar)
+            .progress_with(bar.clone())
             .map(ffmpeg)
             .collect::<Vec<Result<()>>>();
-        println!("Finished!");
+        bar.finish_with_message("Finished!");
 
+        let mut num_errors = 0;
         for result in results {
             if let Err(error) = result {
                 num_errors += 1;
                 eprintln!("{error:#}");
             }
         }
+
         println!("ffmpeg failed to encode {num_errors} files");
         println!("Done in {}", HumanDuration(started.elapsed()));
     }
