@@ -33,11 +33,13 @@ pub fn generate_inputs_and_filters(dir: &Path) -> Result<(Vec<String>, String)> 
     }
 
     debug_assert_eq!(inputs.len() % 2, 0);
-    if (inputs.len() / 2) < 2 {
+    // the real length is inputs.len() / 2 because of the pair: `-i <INPUT>`
+    let len = inputs.len() / 2;
+    if (len) < 2 {
         return Err(anyhow!(
             "Not enough video file to merge. {} contains: {}",
             dir.display(),
-            inputs.len() / 2
+            len
         ));
     }
 
