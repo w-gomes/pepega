@@ -78,8 +78,19 @@ pub fn temp_list_for_video(dir: &Path, framerate: u64) -> Result<(NamedTempFile,
     Ok((temp_file, total_images))
 }
 
+// unwrap the output or generate one
+pub fn get_or_generate_output(
+    input: &Path,
+    output: Option<PathBuf>,
+    prefix: &str,
+) -> Result<PathBuf> {
+    output
+        .map_or_else(|| generate_output(input, prefix), Ok)
+        .with_context(|| anyhow!("Could not get the output file for {}", input.display()))
+}
+
 // Generate an output name
-pub fn generate_output(path: &Path, command_str: &str) -> Result<PathBuf> {
+fn generate_output(path: &Path, command_str: &str) -> Result<PathBuf> {
     let original_input = path.to_path_buf();
     let Some(file_name) = original_input.file_name() else {
         return Err(anyhow!("Error extracting file name from Input"));

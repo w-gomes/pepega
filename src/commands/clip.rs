@@ -2,7 +2,7 @@ use anyhow::{Result, bail};
 
 use crate::args::{Config, EncodeOpt, VideoCodec};
 use crate::ffmpeg::try_run_ffmpeg;
-use crate::utils::{generate_output, set_flags_for_loglevel};
+use crate::utils::{get_or_generate_output, set_flags_for_loglevel};
 
 const CLIP: &str = "CLIP";
 const CLIP_GIF: &str = "CLIP_GIF";
@@ -21,7 +21,7 @@ pub fn clip(config: Config, start: &str, end: &str, encode_opt: Option<EncodeOpt
         bail!("Input must be a file");
     }
 
-    let output = output.map_or_else(|| generate_output(&input, CLIP), Ok)?;
+    let output = get_or_generate_output(&input, output, CLIP)?;
 
     let mut args = Vec::new();
     args.extend(set_flags_for_loglevel(verbose));
@@ -79,7 +79,7 @@ pub fn clip_gif(config: Config, start: &str, end: &str) -> Result<()> {
         bail!("Input must be a file");
     }
 
-    let output = output.map_or_else(|| generate_output(&input, CLIP_GIF), Ok)?;
+    let output = get_or_generate_output(&input, output, CLIP_GIF)?;
 
     let mut args = Vec::new();
 

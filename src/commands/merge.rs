@@ -3,7 +3,7 @@ use anyhow::{Result, bail};
 use crate::args::{Config, EncodeOpt};
 use crate::commands::encode::encode_opt_to_vec;
 use crate::ffmpeg::try_run_ffmpeg;
-use crate::utils::{generate_inputs_and_filters, generate_output, set_flags_for_loglevel};
+use crate::utils::{generate_inputs_and_filters, get_or_generate_output, set_flags_for_loglevel};
 
 const MERGE: &str = "MERGE";
 
@@ -19,7 +19,7 @@ pub fn merge(config: Config, encode_opt: &EncodeOpt) -> Result<()> {
         bail!("Input must be a directory");
     }
 
-    let output = output.map_or_else(|| generate_output(&input, MERGE), Ok)?;
+    let output = get_or_generate_output(&input, output, MERGE)?;
 
     let mut args = Vec::new();
 
