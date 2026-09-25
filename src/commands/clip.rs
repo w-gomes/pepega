@@ -15,6 +15,7 @@ pub fn clip(config: Config, start: &str, end: &str, encode_opt: Option<EncodeOpt
         output,
         dry_run,
         verbose,
+        ..
     } = config;
 
     if !input.is_file() {
@@ -73,6 +74,7 @@ pub fn clip_gif(config: Config, start: &str, end: &str) -> Result<()> {
         output,
         dry_run,
         verbose,
+        ..
     } = config;
 
     if !input.is_file() {

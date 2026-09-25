@@ -13,6 +13,7 @@ pub fn merge(config: Config, encode_opt: &EncodeOpt) -> Result<()> {
         output,
         dry_run,
         verbose,
+        ..
     } = config;
 
     if !input.is_dir() {

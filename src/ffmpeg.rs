@@ -5,6 +5,8 @@ use anyhow::{Context, Result, anyhow};
 use indicatif::{HumanDuration, ParallelProgressIterator, ProgressBar, ProgressStyle};
 use rayon::prelude::*;
 
+const DEFAULT_NUM_THREADS: usize = 4;
+
 fn ffmpeg<Iter>(args: Iter) -> Result<()>
 where
     Iter: std::iter::IntoIterator<Item = String>,
@@ -54,7 +56,11 @@ pub fn try_run_ffmpeg(dry_run: bool, args: Vec<String>) -> Result<()> {
     Ok(())
 }
 
-pub fn try_run_ffmpeg_par(dry_run: bool, args: Vec<Vec<String>>) -> Result<()> {
+pub fn try_run_ffmpeg_par(
+    dry_run: bool,
+    args: Vec<Vec<String>>,
+    threads: Option<usize>,
+) -> Result<()> {
     println!("{} files", args.len());
     if dry_run {
         println!("dry run... doing nothing.");
@@ -64,6 +70,20 @@ pub fn try_run_ffmpeg_par(dry_run: bool, args: Vec<Vec<String>>) -> Result<()> {
         }
         println!("------");
     } else {
+        let threads = threads.unwrap_or(DEFAULT_NUM_THREADS);
+        if threads > num_cpus::get() {
+            println!(
+                "Number of threads chosen ({}) is greater than available threads ({}).",
+                threads,
+                num_cpus::get()
+            );
+            println!("Using the default config for number of threads ({DEFAULT_NUM_THREADS})");
+        }
+        rayon::ThreadPoolBuilder::new()
+            .num_threads(threads)
+            .build_global()
+            .with_context(|| "Failed to create a thread pool".to_string())?;
+
         let started = Instant::now();
 
         let style = ProgressStyle::default_bar()

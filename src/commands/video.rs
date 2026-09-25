@@ -12,6 +12,7 @@ pub fn video(config: Config, framerate: u64) -> Result<()> {
         output,
         dry_run,
         verbose,
+        ..
     } = config;
 
     if !input.is_dir() {
