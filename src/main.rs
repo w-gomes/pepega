@@ -1,4 +1,4 @@
-use anyhow::{Context, Result};
+use anyhow::Result;
 use clap::Parser;
 
 mod args;
@@ -12,12 +12,6 @@ use crate::commands::{
 };
 
 fn main() -> Result<()> {
-    // Set rayon to use 6 threads instead of all available threads
-    rayon::ThreadPoolBuilder::new()
-        .num_threads(6)
-        .build_global()
-        .with_context(|| "Failed to create a thread pool".to_string())?;
-
     let opts = Opts::parse();
 
     let config = Config {
@@ -25,6 +19,7 @@ fn main() -> Result<()> {
         output: opts.output,
         dry_run: opts.dry_run,
         verbose: opts.verbose,
+        threads: opts.threads,
     };
 
     match opts.commands {

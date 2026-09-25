@@ -11,6 +11,7 @@ pub struct Config {
     pub output: Option<PathBuf>,
     pub dry_run: bool,
     pub verbose: bool,
+    pub threads: Option<usize>,
 }
 
 #[derive(Parser, Debug)]
@@ -29,6 +30,10 @@ pub struct Opts {
     /// Set ffmpeg log level to verbose. Defaults to -loglevel error.
     #[arg(long, default_value_t = false, global = true)]
     pub verbose: bool,
+
+    /// Set the number of threads to be used with rayon's thread pool.
+    #[arg(short = 'j', long, alias = "jobs", global = true)]
+    pub threads: Option<usize>,
 
     /// Input: either a single file or a directory
     #[arg(short, long)]

@@ -69,7 +69,6 @@ pub fn temp_list_for_video(dir: &Path, framerate: u64) -> Result<(NamedTempFile,
         let entry = entry.path();
         let entry = fs::canonicalize(entry)
             .with_context(|| format!("Failed to get the absolute path of {}", entry.display()))?;
-        println!("{}", entry.display());
         writeln!(temp_file, "file '{}'", entry.display())?;
         writeln!(temp_file, "duration {framerate}")?;
         total_images += 1;

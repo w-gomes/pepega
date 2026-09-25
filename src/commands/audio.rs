@@ -12,6 +12,7 @@ pub fn audio(config: Config, audio_codec: &AudioCodec) -> Result<()> {
         output,
         dry_run,
         verbose,
+        ..
     } = config;
 
     if !input.is_file() {
