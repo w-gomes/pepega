@@ -2,7 +2,7 @@ use std::path::{Path, PathBuf};
 
 use anyhow::Result;
 
-use crate::args::{Config, DEFAULT_CQ, DEFAULT_CRF, EncodeOpt, VideoCodec};
+use crate::args::{AudioCodec, Config, DEFAULT_CQ, DEFAULT_CRF, EncodeOpt, VideoCodec};
 use crate::ffmpeg::{try_run_ffmpeg, try_run_ffmpeg_par};
 use crate::utils::{
     generate_multiple_inputs_and_outputs, get_or_generate_output, set_flags_for_loglevel,
@@ -188,8 +188,8 @@ fn single_file(
     let mut args = Vec::new();
     args.extend(set_flags_for_loglevel(verbose));
     args.extend(with_flip_or_default(input, flip));
-    args.extend(encode_opt_to_vec(&encode_opt));
-    args.extend_from_slice(&["-c:a".to_string(), encode_opt.audio_codec.to_string()]);
+    args.extend(video_opt_to_vec(&encode_opt));
+    args.extend(audio_opt_to_vec(&encode_opt.audio_codec));
 
     let output = output.with_extension(encode_opt.video_format.to_string());
     args.push(output.display().to_string());
@@ -213,8 +213,8 @@ fn multiple_file(
         let mut inner_args = Vec::new();
         inner_args.extend(set_flags_for_loglevel(verbose));
         inner_args.extend(with_flip_or_default(&input, flip));
-        inner_args.extend(encode_opt_to_vec(&encode_opt));
-        inner_args.extend_from_slice(&["-c:a".to_string(), encode_opt.audio_codec.to_string()]);
+        inner_args.extend(video_opt_to_vec(&encode_opt));
+        inner_args.extend(audio_opt_to_vec(&encode_opt.audio_codec));
 
         let output = output.with_extension(encode_opt.video_format.to_string());
         inner_args.push(output.display().to_string());
@@ -225,7 +225,7 @@ fn multiple_file(
     Ok(args)
 }
 
-pub fn encode_opt_to_vec(encode_opt: &EncodeOpt) -> Vec<String> {
+pub fn video_opt_to_vec(encode_opt: &EncodeOpt) -> Vec<String> {
     match encode_opt
         .video_codec
         .as_ref()
@@ -249,6 +249,35 @@ pub fn encode_opt_to_vec(encode_opt: &EncodeOpt) -> Vec<String> {
                 encode_opt.crf.unwrap_or(DEFAULT_CRF).to_string(),
                 "-preset".to_string(),
                 "ultrafast".to_string(),
+            ]
+        }
+    }
+}
+
+pub fn audio_opt_to_vec(audio_codec: &AudioCodec) -> Vec<String> {
+    match audio_codec {
+        ref enc @ AudioCodec::Aac => {
+            vec![
+                "-c:a".to_string(),
+                enc.to_string(),
+                "-b:a".to_string(),
+                "256k".to_string(),
+            ]
+        }
+        ref enc @ AudioCodec::Mp3 => {
+            vec![
+                "-c:a".to_string(),
+                enc.to_string(),
+                "-b:a".to_string(),
+                "320k".to_string(),
+            ]
+        }
+        ref enc @ AudioCodec::Opus => {
+            vec![
+                "-c:a".to_string(),
+                enc.to_string(),
+                "-b:a".to_string(),
+                "192k".to_string(),
             ]
         }
     }

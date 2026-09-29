@@ -1,7 +1,7 @@
 use anyhow::{Result, bail};
 
 use crate::args::{Config, EncodeOpt};
-use crate::commands::encode::encode_opt_to_vec;
+use crate::commands::encode::video_opt_to_vec;
 use crate::ffmpeg::try_run_ffmpeg;
 use crate::utils::{generate_inputs_and_filters, get_or_generate_output, set_flags_for_loglevel};
 
@@ -36,7 +36,7 @@ pub fn merge(config: Config, encode_opt: &EncodeOpt) -> Result<()> {
         "-map".to_string(),
         "[a]".to_string(),
     ]);
-    args.extend(encode_opt_to_vec(encode_opt));
+    args.extend(video_opt_to_vec(encode_opt));
 
     let output = output.with_extension(encode_opt.video_format.to_string());
     args.push(output.display().to_string());
