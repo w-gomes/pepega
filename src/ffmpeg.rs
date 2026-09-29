@@ -5,7 +5,7 @@ use anyhow::{Context, Result, anyhow};
 use indicatif::{HumanDuration, ParallelProgressIterator, ProgressBar, ProgressStyle};
 use rayon::prelude::*;
 
-const DEFAULT_NUM_THREADS: usize = 4;
+const DEFAULT_NUM_THREADS: usize = 2;
 
 fn ffmpeg<Iter>(args: Iter) -> Result<()>
 where
