@@ -39,7 +39,7 @@ pub fn try_run_ffmpeg(dry_run: bool, args: Vec<String>) -> Result<()> {
 
         let style = ProgressStyle::default_spinner()
             .tick_chars("⠁⠂⠄⡀⢀⠠⠐⠈ ")
-            .template("{spinner:.green} {msg}")
+            .template("{spinner:.green} [{elapsed_precise}] {msg}")
             .with_context(|| anyhow!("Failed to create ProgressStyle"))?;
 
         let spinner = ProgressBar::new_spinner();
