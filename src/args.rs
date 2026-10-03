@@ -5,6 +5,7 @@ use clap::{Args, Parser, Subcommand, ValueEnum};
 
 pub const DEFAULT_CRF: u64 = 22;
 pub const DEFAULT_CQ: u64 = 16;
+const DEFAULT_FRAMERATE: u64 = 5;
 
 pub struct Config {
     pub input: PathBuf,
@@ -63,7 +64,7 @@ pub enum Commands {
             long,
             alias = "duration",
             value_names = ["FRAMERATE, DURATION"],
-            default_value_t = 5,
+            default_value_t = {DEFAULT_FRAMERATE},
             value_parser = clap::value_parser!(u64).range(1..=15)
         )]
         framerate: u64,
@@ -157,7 +158,7 @@ pub struct EncodeOpt {
     #[arg(short = 'F', long, value_enum, default_value_t = VideoFormat::Mp4)]
     pub video_format: VideoFormat,
 
-    /// Constant Rate Factor (CRF): [0..=51] [default: 23]
+    /// Constant Rate Factor (CRF): [0..=51] [default: {`DEFAULT_CRF`}]
     /// Only works with H264 and H265
     #[arg(
         long,
@@ -167,7 +168,7 @@ pub struct EncodeOpt {
     )]
     pub crf: Option<u64>,
 
-    /// Constant Quality: [1..=63] [default: 19]
+    /// Constant Quality: [1..=63] [default: {`DEFAULT_CQ`}]
     /// Only works with AV1 and HVEC
     #[arg(long,
           value_name = "CQ",
