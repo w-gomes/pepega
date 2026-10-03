@@ -158,7 +158,7 @@ pub struct EncodeOpt {
     #[arg(short = 'F', long, value_enum, default_value_t = VideoFormat::Mp4)]
     pub video_format: VideoFormat,
 
-    /// Constant Rate Factor (CRF): [0..=51] [default: {`DEFAULT_CRF`}]
+    /// Constant Rate Factor (CRF): [0..=51] [default: 22]
     /// Only works with H264 and H265
     #[arg(
         long,
@@ -168,7 +168,7 @@ pub struct EncodeOpt {
     )]
     pub crf: Option<u64>,
 
-    /// Constant Quality: [1..=63] [default: {`DEFAULT_CQ`}]
+    /// Constant Quality: [1..=63] [default: 16]
     /// Only works with AV1 and HVEC
     #[arg(long,
           value_name = "CQ",
