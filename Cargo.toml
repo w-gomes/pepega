@@ -1,6 +1,6 @@
 [package]
 name = "pepega"
-version = "0.11.0-alpha.1"
+version = "0.11.1-alpha.1"
 edition = "2024"
 
 [dependencies]
@@ -11,7 +11,7 @@ tempfile = "3.27.0"
 strum = { version = "0.28.0", features = ["derive"] }
 walkdir = "2.5.0"
 rayon = "1.12.0"
-indicatif = { version = "0.18.6", features = ["rayon"] } 
+indicatif = { version = "0.18.6", features = ["rayon"] }
 num_cpus = "1.17.0"
 
 [profile.dev]

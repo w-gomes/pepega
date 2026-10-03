@@ -3,8 +3,8 @@ use std::path::PathBuf;
 use anyhow::{Result, bail};
 use clap::{Args, Parser, Subcommand, ValueEnum};
 
-pub const DEFAULT_CRF: u64 = 23;
-pub const DEFAULT_CQ: u64 = 19;
+pub const DEFAULT_CRF: u64 = 22;
+pub const DEFAULT_CQ: u64 = 16;
 
 pub struct Config {
     pub input: PathBuf,
@@ -198,7 +198,7 @@ impl EncodeOpt {
                     }
                 }
 
-                VideoCodec::Av1 | VideoCodec::Hevc => {
+                VideoCodec::Av1 | VideoCodec::Hevc | VideoCodec::H264Nvenc => {
                     if self.crf.is_some() {
                         bail!("--crf is not used with {video_codec}");
                     }
@@ -211,16 +211,31 @@ impl EncodeOpt {
 
 #[derive(ValueEnum, Debug, Clone, strum::Display)]
 pub enum VideoCodec {
-    /// `av1_nvenc` NVIDIA av1 codec
-    #[strum(to_string = "av1_nvenc")]
-    Av1,
-    /// `libx264` H.264 codec
+    /// `libx264` codec
     #[strum(to_string = "libx264")]
+    #[value(aliases = ["H264", "264"])]
     H264,
-    /// `libx265` H.265 codec
+    /// `libx265` codec
+    #[value(aliases = ["H265", "265"])]
     #[strum(to_string = "libx265")]
     H265,
-    /// `hevc_nvenc` HEVC codec
+
+    // NVidia
+    /// `av1_nvenc` codec
+    #[strum(to_string = "av1_nvenc")]
+    Av1,
+    /// `h264_nvenc` codec
+    #[strum(to_string = "h264_nvenc")]
+    #[value(aliases = [
+        "H264_nvenc",
+        "h264_nvenc",
+        "h264nvenc",
+        "H264nvenc",
+        "264_nvenc",
+        "264nvenc"
+    ])]
+    H264Nvenc,
+    /// `hevc_nvenc` codec
     #[strum(to_string = "hevc_nvenc")]
     Hevc,
 }
