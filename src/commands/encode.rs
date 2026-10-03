@@ -57,7 +57,7 @@ pub fn encode_youtube(config: Config, flip: bool) -> Result<()> {
             "-crf".to_string(),
             "18".to_string(),
             "-preset".to_string(),
-            "ultrafast".to_string(),
+            "medium".to_string(),
             "-c:a".to_string(),
             "aac".to_string(),
             "-b:a".to_string(),
@@ -85,7 +85,7 @@ pub fn encode_youtube(config: Config, flip: bool) -> Result<()> {
                 "-crf".to_string(),
                 "18".to_string(),
                 "-preset".to_string(),
-                "ultrafast".to_string(),
+                "medium".to_string(),
                 "-c:a".to_string(),
                 "aac".to_string(),
                 "-b:a".to_string(),
@@ -128,7 +128,7 @@ pub fn encode_upscale(config: Config, flip: bool) -> Result<()> {
             "-crf".to_string(),
             "18".to_string(),
             "-preset".to_string(),
-            "ultrafast".to_string(),
+            "slow".to_string(),
             "-c:a".to_string(),
             "aac".to_string(),
             "-b:a".to_string(),
@@ -156,7 +156,7 @@ pub fn encode_upscale(config: Config, flip: bool) -> Result<()> {
                 "-crf".to_string(),
                 "18".to_string(),
                 "-preset".to_string(),
-                "ultrafast".to_string(),
+                "slow".to_string(),
                 "-c:a".to_string(),
                 "aac".to_string(),
                 "-b:a".to_string(),
@@ -231,14 +231,14 @@ pub fn video_opt_to_vec(encode_opt: &EncodeOpt) -> Vec<String> {
         .as_ref()
         .unwrap_or(&DEFAULT_VIDEOCODEC)
     {
-        ref enc @ (VideoCodec::Av1 | VideoCodec::Hevc) => {
+        ref enc @ (VideoCodec::Av1 | VideoCodec::Hevc | VideoCodec::H264Nvenc) => {
             vec![
                 "-c:v".to_string(),
                 enc.to_string(),
                 "-cq".to_string(),
                 encode_opt.cq.unwrap_or(DEFAULT_CQ).to_string(),
                 "-preset".to_string(),
-                "p1".to_string(),
+                "p5".to_string(),
             ]
         }
         ref enc @ (VideoCodec::H264 | VideoCodec::H265) => {
@@ -248,7 +248,7 @@ pub fn video_opt_to_vec(encode_opt: &EncodeOpt) -> Vec<String> {
                 "-crf".to_string(),
                 encode_opt.crf.unwrap_or(DEFAULT_CRF).to_string(),
                 "-preset".to_string(),
-                "ultrafast".to_string(),
+                "veryfast".to_string(),
             ]
         }
     }
