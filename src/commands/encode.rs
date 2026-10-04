@@ -2,7 +2,9 @@ use std::path::{Path, PathBuf};
 
 use anyhow::Result;
 
-use crate::args::{AudioCodec, Config, DEFAULT_CQ, DEFAULT_CRF, EncodeOpt, VideoCodec};
+use crate::args::{
+    AudioCodec, Config, DEFAULT_CQ_AV1, DEFAULT_CQ_HEVC, DEFAULT_CRF, EncodeOpt, VideoCodec,
+};
 use crate::ffmpeg::{try_run_ffmpeg, try_run_ffmpeg_par};
 use crate::utils::{
     generate_multiple_inputs_and_outputs, get_or_generate_output, set_flags_for_loglevel,
@@ -231,12 +233,22 @@ pub fn video_opt_to_vec(encode_opt: &EncodeOpt) -> Vec<String> {
         .as_ref()
         .unwrap_or(&DEFAULT_VIDEOCODEC)
     {
-        ref enc @ (VideoCodec::Av1 | VideoCodec::Hevc | VideoCodec::H264Nvenc) => {
+        ref enc @ VideoCodec::Av1 => {
             vec![
                 "-c:v".to_string(),
                 enc.to_string(),
                 "-cq".to_string(),
-                encode_opt.cq.unwrap_or(DEFAULT_CQ).to_string(),
+                encode_opt.cq.unwrap_or(DEFAULT_CQ_AV1).to_string(),
+                "-preset".to_string(),
+                "p5".to_string(),
+            ]
+        }
+        ref enc @ VideoCodec::Hevc => {
+            vec![
+                "-c:v".to_string(),
+                enc.to_string(),
+                "-cq".to_string(),
+                encode_opt.cq.unwrap_or(DEFAULT_CQ_HEVC).to_string(),
                 "-preset".to_string(),
                 "p5".to_string(),
             ]

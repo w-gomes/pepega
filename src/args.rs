@@ -4,7 +4,10 @@ use anyhow::{Result, bail};
 use clap::{Args, Parser, Subcommand, ValueEnum};
 
 pub const DEFAULT_CRF: u64 = 22;
-pub const DEFAULT_CQ: u64 = 16;
+pub const DEFAULT_CQ: u64 = 20;
+pub const DEFAULT_CQ_AV1: u64 = 26;
+pub const DEFAULT_CQ_HEVC: u64 = 24;
+
 const DEFAULT_FRAMERATE: u64 = 5;
 
 pub struct Config {
@@ -151,7 +154,7 @@ pub struct EncodeOpt {
     pub video_codec: Option<VideoCodec>,
 
     /// Audio codec options
-    #[arg(short = 'A', long, value_enum, default_value_t = AudioCodec::Aac)]
+    #[arg(short = 'A', long, value_enum, default_value_t = AudioCodec::Opus)]
     pub audio_codec: AudioCodec,
 
     /// Video format options
@@ -169,7 +172,7 @@ pub struct EncodeOpt {
     pub crf: Option<u64>,
 
     /// Constant Quality: [1..=63] [default: 16]
-    /// Only works with AV1 and HVEC
+    /// Only works with AV1 and HEVC
     #[arg(long,
           value_name = "CQ",
           value_parser = clap::value_parser!(u64).range(1..=63),
@@ -181,7 +184,7 @@ impl Default for EncodeOpt {
     fn default() -> Self {
         Self {
             video_codec: Some(VideoCodec::H264),
-            audio_codec: AudioCodec::Aac,
+            audio_codec: AudioCodec::Opus,
             video_format: VideoFormat::Mp4,
             crf: Some(DEFAULT_CRF),
             cq: Some(DEFAULT_CQ),
@@ -199,7 +202,7 @@ impl EncodeOpt {
                     }
                 }
 
-                VideoCodec::Av1 | VideoCodec::Hevc | VideoCodec::H264Nvenc => {
+                VideoCodec::Av1 | VideoCodec::Hevc => {
                     if self.crf.is_some() {
                         bail!("--crf is not used with {video_codec}");
                     }
@@ -225,17 +228,6 @@ pub enum VideoCodec {
     /// `av1_nvenc` codec
     #[strum(to_string = "av1_nvenc")]
     Av1,
-    /// `h264_nvenc` codec
-    #[strum(to_string = "h264_nvenc")]
-    #[value(aliases = [
-        "H264_nvenc",
-        "h264_nvenc",
-        "h264nvenc",
-        "H264nvenc",
-        "264_nvenc",
-        "264nvenc"
-    ])]
-    H264Nvenc,
     /// `hevc_nvenc` codec
     #[strum(to_string = "hevc_nvenc")]
     Hevc,
