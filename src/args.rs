@@ -4,7 +4,7 @@ use anyhow::{Result, bail};
 use clap::{Args, Parser, Subcommand, ValueEnum};
 
 pub const DEFAULT_CRF: u64 = 22;
-pub const DEFAULT_CQ: u64 = 20;
+pub const DEFAULT_CQ: u64 = 24;
 pub const DEFAULT_CQ_AV1: u64 = 26;
 pub const DEFAULT_CQ_HEVC: u64 = 24;
 
@@ -27,15 +27,15 @@ pub struct Config {
     max_term_width = 80
 )]
 pub struct Opts {
-    /// Don't do anything, only print the arguments without running `FFmpeg`
+    /// Don't do anything, only print the arguments.
     #[arg(long, aliases = ["dry", "test"], default_value_t = false, global = true)]
     pub dry_run: bool,
 
-    /// Set ffmpeg log level to verbose. Defaults to -loglevel error.
+    /// Set ffmpeg log level to verbose `-loglevel info`.
     #[arg(long, default_value_t = false, global = true)]
     pub verbose: bool,
 
-    /// Set the number of threads to be used with rayon's thread pool.
+    /// Set the number of threads for rayon's thread pool.
     #[arg(short = 'j', long, alias = "jobs", global = true)]
     pub threads: Option<usize>,
 
@@ -57,7 +57,7 @@ pub enum Commands {
     Audio(AudioArgs),
 
     /// Common tasks on video: Encode, Clip, Merge, Youtube, Upscale, Gif.
-    /// Run pepega.exe video --help for more information
+    /// Run pepega.exe video --help for more information.
     Video(VideoArgs),
 
     /// Create a video from images inside a directory.
@@ -76,7 +76,7 @@ pub enum Commands {
 
 #[derive(Args, Debug)]
 pub struct AudioArgs {
-    /// Options to encode the audio stream if encoding.
+    /// Audio dodec.
     #[arg(short = 'A', long, value_enum, default_value_t = AudioCodec::Mp3)]
     pub audio_codec: AudioCodec,
 }
@@ -89,80 +89,80 @@ pub struct VideoArgs {
 
 #[derive(Subcommand, Debug)]
 pub enum VideoCommands {
-    /// Encode the video
+    /// Encode the output.
     Encode {
         #[command(flatten)]
         encode_opt: EncodeOpt,
 
-        /// Flip (rotate) video clockwise 90 degrees
+        /// Flip (rotate) the output clockwise 90 degrees.
         #[arg(long)]
         flip: bool,
     },
 
-    /// Clip (trim) a video with START and END timestamps.
-    /// If Encode Options are not present, the stream will be copied
+    /// Clip (trim) an input with START and END timestamps.
+    /// If Encode Options are not entered, the stream will be copied.
     Clip {
         #[command(flatten)]
         encode_opt: Option<EncodeOpt>,
 
-        /// The start of the clip
+        /// The start of the clip.
         start: String,
 
-        /// The end of the clip
+        /// The end of the clip.
         end: String,
     },
 
-    /// Merge two or more videos inside a directory
+    /// Merge two or more videos in a directory.
     #[command(alias = "concat")]
     Merge {
         #[command(flatten)]
         encode_opt: EncodeOpt,
     },
 
-    /// Transcode optimized for `Youtube`
+    /// Transcode optimized for `Youtube`.
     Youtube {
-        /// Flip (rotate) video clockwise 90 degrees
+        /// Flip (rotate) the output clockwise 90 degrees.
         #[arg(long)]
         flip: bool,
     },
 
     /// Upscale and transcode video for higher peak quality on platforms like `Youtube`.
-    /// Uses `FFmpeg`'s recommended settings for upscalling
+    /// Uses `FFmpeg`'s recommended settings for upscalling.
     ///
     /// See for more detail `<https://trac.ffmpeg.org/wiki/Encode/YouTube#Upscalingvideoforhigherpeakquality>`
     Upscale {
-        /// Flip (rotate) video clockwise 90 degrees
+        /// Flip (rotate) the output clockwise 90 degrees.
         #[arg(long)]
         flip: bool,
     },
 
-    /// Clip (trim) a video and save it as `gif`
-    /// Note: `gif` file is large, even for short clip
+    /// Clip (trim) a video and save it as `gif`.
+    /// Note: `gif` file is large, even for short clip.
     Gif {
-        /// The start of the gif
+        /// The start of the gif.
         start: String,
 
-        /// The end of the gif
+        /// The end of the gif.
         end: String,
     },
 }
 
 #[derive(Args, Debug, Clone)]
 pub struct EncodeOpt {
-    /// Video codec options
+    /// Video codec.
     #[arg(short = 'V', long, value_enum)]
     pub video_codec: Option<VideoCodec>,
 
-    /// Audio codec options
+    /// Audio codec.
     #[arg(short = 'A', long, value_enum, default_value_t = AudioCodec::Opus)]
     pub audio_codec: AudioCodec,
 
-    /// Video format options
+    /// Video format.
     #[arg(short = 'F', long, value_enum, default_value_t = VideoFormat::Mp4)]
     pub video_format: VideoFormat,
 
-    /// Constant Rate Factor (CRF): [0..=51] [default: 22]
-    /// Only works with H264 and H265
+    /// Constant Rate Factor (CRF): [0..=51] [default: 22].
+    /// Only works with H264 and H265.
     #[arg(
         long,
         value_name = "CRF",
@@ -171,8 +171,8 @@ pub struct EncodeOpt {
     )]
     pub crf: Option<u64>,
 
-    /// Constant Quality: [1..=63] [default: 16]
-    /// Only works with AV1 and HEVC
+    /// Constant Quality: [1..=63] [default: 24 for HEVC; 26 for AV1].
+    /// Only works with AV1 and HEVC.
     #[arg(long,
           value_name = "CQ",
           value_parser = clap::value_parser!(u64).range(1..=63),
@@ -215,43 +215,43 @@ impl EncodeOpt {
 
 #[derive(ValueEnum, Debug, Clone, strum::Display)]
 pub enum VideoCodec {
-    /// `libx264` codec
+    /// `libx264` codec.
     #[strum(to_string = "libx264")]
     #[value(aliases = ["H264", "264"])]
     H264,
-    /// `libx265` codec
+    /// `libx265` codec.
     #[value(aliases = ["H265", "265"])]
     #[strum(to_string = "libx265")]
     H265,
 
     // NVidia
-    /// `av1_nvenc` codec
+    /// `av1_nvenc` codec.
     #[strum(to_string = "av1_nvenc")]
     Av1,
-    /// `hevc_nvenc` codec
+    /// `hevc_nvenc` codec.
     #[strum(to_string = "hevc_nvenc")]
     Hevc,
 }
 
 #[derive(ValueEnum, Debug, Clone, strum::Display)]
 pub enum AudioCodec {
-    /// `aac` Advanced Audio Coding codec
+    /// `aac` Advanced Audio Coding codec.
     #[strum(to_string = "aac")]
     Aac,
-    /// `mp3` MP3 codec
+    /// `mp3` MP3 codec.
     #[strum(to_string = "mp3")]
     Mp3,
-    /// `libopus` Opus codec
+    /// `libopus` Opus codec.
     #[strum(to_string = "libopus")]
     Opus,
 }
 
 #[derive(ValueEnum, Debug, Clone, strum::Display)]
 pub enum VideoFormat {
-    /// `mp4` MP4 container
+    /// `mp4` MP4 format.
     #[strum(to_string = "mp4")]
     Mp4,
-    /// `mkv` Matroska container
+    /// `mkv` Matroska format.
     #[strum(to_string = "mkv")]
     Mkv,
 }
