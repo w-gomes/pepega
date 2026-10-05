@@ -3,9 +3,8 @@ use std::path::PathBuf;
 use anyhow::{Result, bail};
 use clap::{Args, Parser, Subcommand, ValueEnum};
 
-pub const DEFAULT_CRF: u64 = 22;
-pub const DEFAULT_CQ: u64 = 24;
-pub const DEFAULT_CQ_AV1: u64 = 26;
+pub const DEFAULT_CRF: u64 = 23;
+pub const DEFAULT_CQ_AV1: u64 = 28;
 pub const DEFAULT_CQ_HEVC: u64 = 24;
 
 const DEFAULT_FRAMERATE: u64 = 5;
@@ -161,8 +160,10 @@ pub struct EncodeOpt {
     #[arg(short = 'F', long, value_enum, default_value_t = VideoFormat::Mp4)]
     pub video_format: VideoFormat,
 
-    /// Constant Rate Factor (CRF): [0..=51] [default: 22].
-    /// Only works with H264 and H265.
+    /// Constant Rate Factor (CRF): [0..=51]
+    /// Reasonable values for CRF: [17..28]
+    ///
+    /// [default: 23]
     #[arg(
         long,
         value_name = "CRF",
@@ -171,8 +172,14 @@ pub struct EncodeOpt {
     )]
     pub crf: Option<u64>,
 
-    /// Constant Quality: [1..=63] [default: 24 for HEVC; 26 for AV1].
-    /// Only works with AV1 and HEVC.
+    /// Constant Quality: [1..=63]
+    /// Reasonable values for CQ:
+    /// hevc      av1
+    /// [18..22]  [22..26]
+    /// [24..28]  [28..32]
+    /// [30+]     [34+]
+    ///
+    /// [default: 28 (hevc) | 32 (av1)]
     #[arg(long,
           value_name = "CQ",
           value_parser = clap::value_parser!(u64).range(1..=63),
@@ -187,7 +194,8 @@ impl Default for EncodeOpt {
             audio_codec: AudioCodec::Opus,
             video_format: VideoFormat::Mp4,
             crf: Some(DEFAULT_CRF),
-            cq: Some(DEFAULT_CQ),
+            // 0 means automatic for -cq
+            cq: Some(0),
         }
     }
 }
