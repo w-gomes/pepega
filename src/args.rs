@@ -27,7 +27,7 @@ const STYLES: Styles = Styles::styled()
     .header(AnsiColor::Blue.on_default().effects(Effects::BOLD))
     .usage(AnsiColor::Blue.on_default().effects(Effects::BOLD))
     .literal(AnsiColor::Green.on_default().effects(Effects::BOLD))
-    .placeholder(AnsiColor::Yellow.on_default().effects(Effects::BOLD))
+    .placeholder(AnsiColor::BrightCyan.on_default().effects(Effects::BOLD))
     .valid(AnsiColor::Cyan.on_default().effects(Effects::BOLD))
     .invalid(AnsiColor::Yellow.on_default().effects(Effects::BOLD))
     .error(AnsiColor::Red.on_default().effects(Effects::UNDERLINE));
