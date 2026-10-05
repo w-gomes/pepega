@@ -13,8 +13,9 @@ use walkdir::{DirEntry, WalkDir};
 pub fn generate_inputs_and_filters(dir: &Path) -> Result<(Vec<String>, String)> {
     let mut inputs = Vec::new();
     let mut filters = String::new();
+    let mut idx = 0;
 
-    for (idx, entry) in WalkDir::new(dir)
+    for entry in WalkDir::new(dir)
         .max_depth(1)
         .into_iter()
         .filter_entry(|e| !is_hidden(e))
@@ -25,16 +26,19 @@ pub fn generate_inputs_and_filters(dir: &Path) -> Result<(Vec<String>, String)> 
                 .extension()
                 .is_some_and(|ext| ext == "mkv" || ext == "mp4")
         })
-        .enumerate()
     {
         let input = entry.path();
         inputs.extend(vec!["-i".to_string(), input.display().to_string()]);
         filters.push_str(format!("[{idx}:v:0][{idx}:a:0]").as_str());
+        idx += 1;
     }
-
-    debug_assert_eq!(inputs.len() % 2, 0);
     // the real length is inputs.len() / 2 because of the pair: `-i <INPUT>`
     let len = inputs.len() / 2;
+
+    debug_assert_eq!(idx, len);
+    filters.push_str(format!("concat=n={idx}:v=1:a=1[v][a]").as_str());
+
+    debug_assert_eq!(inputs.len() % 2, 0);
     if (len) < 2 {
         return Err(anyhow!(
             "Not enough video file to merge. {} contains: {}",

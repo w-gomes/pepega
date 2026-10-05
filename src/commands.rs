@@ -67,7 +67,7 @@ pub fn video_flag(video_codec: VideoCodec, quality: Option<u64>) -> Vec<String> 
             vec![
                 "-c:v".to_string(),
                 codec.to_string(),
-                "--crf".to_string(),
+                "-crf".to_string(),
                 quality.to_string(),
                 "-preset".to_string(),
                 "veryfast".to_string(),
@@ -77,7 +77,7 @@ pub fn video_flag(video_codec: VideoCodec, quality: Option<u64>) -> Vec<String> 
             vec![
                 "-c:v".to_string(),
                 codec.to_string(),
-                "--cq".to_string(),
+                "-cq".to_string(),
                 quality.to_string(),
                 "-preset".to_string(),
                 "p5".to_string(),
