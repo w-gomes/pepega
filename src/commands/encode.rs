@@ -2,21 +2,16 @@ use std::path::{Path, PathBuf};
 
 use anyhow::Result;
 
-use crate::args::{
-    AudioCodec, Config, DEFAULT_CQ_AV1, DEFAULT_CQ_HEVC, DEFAULT_CRF, EncodeOpt, VideoCodec,
-};
+use crate::args::{Config, EncodeOpts, VideoFormat};
+use crate::commands::{audio_flag, flip_flag, loglevel_flag, video_flag};
 use crate::ffmpeg::{try_run_ffmpeg, try_run_ffmpeg_par};
-use crate::utils::{
-    generate_multiple_inputs_and_outputs, get_or_generate_output, set_flags_for_loglevel,
-};
+use crate::utils::{get_inputs_and_outputs, get_output};
 
 const ENCODE: &str = "ENCODE";
 const ENCODE_YOUTUBE: &str = "ENCODE_YOUTUBE";
 const ENCODE_UPSCALE: &str = "ENCODE_UPSCALE";
 
-const DEFAULT_VIDEOCODEC: VideoCodec = VideoCodec::H264;
-
-pub fn encode(config: Config, encode_opt: EncodeOpt, flip: bool) -> Result<()> {
+pub fn encode(config: Config, encode_opts: EncodeOpts, flip: bool) -> Result<()> {
     let Config {
         input,
         output,
@@ -26,11 +21,11 @@ pub fn encode(config: Config, encode_opt: EncodeOpt, flip: bool) -> Result<()> {
     } = config;
 
     if input.is_file() {
-        let args = single_file(&input, output, Some(encode_opt), flip, verbose)?;
+        let args = single_file(&input, output, encode_opts, flip, verbose)?;
         println!("Encoding a single file");
         try_run_ffmpeg(dry_run, args)?;
     } else if input.is_dir() {
-        let args = multiple_file(&input, Some(encode_opt), "ENCODE", flip, verbose)?;
+        let args = multiple_file(&input, encode_opts, ENCODE, flip, verbose)?;
         println!("Encoding multiple files");
         try_run_ffmpeg_par(dry_run, args, threads)?;
     }
@@ -47,55 +42,46 @@ pub fn encode_youtube(config: Config, flip: bool) -> Result<()> {
         threads,
     } = config;
 
+    let output_flags = vec![
+        "-c:v".to_string(),
+        "libx264".to_string(),
+        "-crf".to_string(),
+        "18".to_string(),
+        "-preset".to_string(),
+        "medium".to_string(),
+        "-c:a".to_string(),
+        "aac".to_string(),
+        "-b:a".to_string(),
+        "384k".to_string(),
+        "-pix_fmt".to_string(),
+        "yuv420p".to_string(),
+    ];
+
     if input.is_file() {
-        let output = get_or_generate_output(&input, output, ENCODE_YOUTUBE)?;
+        let output = get_output(&input, output, ENCODE_YOUTUBE)?;
+        let video_format = VideoFormat::default();
+        let output = output.with_extension(video_format.to_string());
 
         let mut args = Vec::new();
-        args.extend(set_flags_for_loglevel(verbose));
-        args.extend(with_flip_or_default(&input, flip));
-        args.extend_from_slice(&[
-            "-c:v".to_string(),
-            "libx264".to_string(),
-            "-crf".to_string(),
-            "18".to_string(),
-            "-preset".to_string(),
-            "medium".to_string(),
-            "-c:a".to_string(),
-            "aac".to_string(),
-            "-b:a".to_string(),
-            "384k".to_string(),
-            "-pix_fmt".to_string(),
-            "yuv420p".to_string(),
-        ]);
-
-        let output = output.with_extension("mp4");
+        args.extend(loglevel_flag(verbose));
+        args.extend(flip_flag(&input, flip));
+        args.extend(output_flags);
         args.push(output.display().to_string());
 
         println!("Encoding a single file for youtube");
         try_run_ffmpeg(dry_run, args)?;
     } else if input.is_dir() {
-        let inputs_outputs_pair = generate_multiple_inputs_and_outputs(&input, ENCODE_YOUTUBE)?;
+        let inputs_outputs_pair = get_inputs_and_outputs(&input, ENCODE_YOUTUBE)?;
 
         let mut args = Vec::new();
         for (input, output) in inputs_outputs_pair {
+            let video_format = VideoFormat::default();
+            let output = output.with_extension(video_format.to_string());
+
             let mut inner_args = Vec::new();
-            inner_args.extend(set_flags_for_loglevel(verbose));
-            inner_args.extend(with_flip_or_default(&input, flip));
-            inner_args.extend_from_slice(&[
-                "-c:v".to_string(),
-                "libx264".to_string(),
-                "-crf".to_string(),
-                "18".to_string(),
-                "-preset".to_string(),
-                "medium".to_string(),
-                "-c:a".to_string(),
-                "aac".to_string(),
-                "-b:a".to_string(),
-                "384k".to_string(),
-                "-pix_fmt".to_string(),
-                "yuv420p".to_string(),
-            ]);
-            let output = output.with_extension("mp4");
+            inner_args.extend(loglevel_flag(verbose));
+            inner_args.extend(flip_flag(&input, flip));
+            inner_args.extend(output_flags.clone());
             inner_args.push(output.display().to_string());
             args.push(inner_args);
         }
@@ -116,55 +102,47 @@ pub fn encode_upscale(config: Config, flip: bool) -> Result<()> {
         threads,
     } = config;
 
+    let output_flags = vec![
+        "-vf".to_string(),
+        "scale=iw*2:ih*2:flags=neighbor".to_string(),
+        "-c:v".to_string(),
+        "libx264".to_string(),
+        "-crf".to_string(),
+        "18".to_string(),
+        "-preset".to_string(),
+        "slow".to_string(),
+        "-c:a".to_string(),
+        "aac".to_string(),
+        "-b:a".to_string(),
+        "384k".to_string(),
+    ];
+
     if input.is_file() {
-        let output = get_or_generate_output(&input, output, ENCODE_UPSCALE)?;
+        let output = get_output(&input, output, ENCODE_UPSCALE)?;
+        let video_format = VideoFormat::default();
+        let output = output.with_extension(video_format.to_string());
 
         let mut args = Vec::new();
-        args.extend(set_flags_for_loglevel(verbose));
-        args.extend(with_flip_or_default(&input, flip));
-        args.extend_from_slice(&[
-            "-vf".to_string(),
-            "scale=iw*2:ih*2:flags=neighbor".to_string(),
-            "-c:v".to_string(),
-            "libx264".to_string(),
-            "-crf".to_string(),
-            "18".to_string(),
-            "-preset".to_string(),
-            "slow".to_string(),
-            "-c:a".to_string(),
-            "aac".to_string(),
-            "-b:a".to_string(),
-            "384k".to_string(),
-        ]);
-
-        let output = output.with_extension("mp4");
+        args.extend(loglevel_flag(verbose));
+        args.extend(flip_flag(&input, flip));
+        args.extend(output_flags);
         args.push(output.display().to_string());
 
         println!("Encoding a single file upscaled");
         try_run_ffmpeg(dry_run, args)?;
     } else if input.is_dir() {
-        let inputs_outputs_pair = generate_multiple_inputs_and_outputs(&input, ENCODE_UPSCALE)?;
+        let inputs_outputs_pair = get_inputs_and_outputs(&input, ENCODE_UPSCALE)?;
 
         let mut args = Vec::new();
         for (input, output) in inputs_outputs_pair {
+            let video_format = VideoFormat::default();
+            let output = output.with_extension(video_format.to_string());
+
             let mut inner_args = Vec::new();
-            inner_args.extend(set_flags_for_loglevel(verbose));
-            inner_args.extend(with_flip_or_default(&input, flip));
-            inner_args.extend_from_slice(&[
-                "-vf".to_string(),
-                "scale=iw*2:ih*2:flags=neighbor".to_string(),
-                "-c:v".to_string(),
-                "libx264".to_string(),
-                "-crf".to_string(),
-                "18".to_string(),
-                "-preset".to_string(),
-                "slow".to_string(),
-                "-c:a".to_string(),
-                "aac".to_string(),
-                "-b:a".to_string(),
-                "384k".to_string(),
-            ]);
-            let output = output.with_extension("mp4");
+            inner_args.extend(loglevel_flag(verbose));
+            inner_args.extend(flip_flag(&input, flip));
+            inner_args.extend(output_flags.clone());
+
             inner_args.push(output.display().to_string());
             args.push(inner_args);
         }
@@ -179,21 +157,26 @@ pub fn encode_upscale(config: Config, flip: bool) -> Result<()> {
 fn single_file(
     input: &Path,
     output: Option<PathBuf>,
-    encode_opt: Option<EncodeOpt>,
+    encode_opts: EncodeOpts,
     flip: bool,
     verbose: bool,
 ) -> Result<Vec<String>> {
-    let output = get_or_generate_output(input, output, ENCODE)?;
+    let EncodeOpts {
+        video_codec,
+        audio_codec,
+        video_format,
+        quality,
+    } = encode_opts;
 
-    let encode_opt = encode_opt.unwrap_or_default();
+    let output = get_output(input, output, ENCODE)?;
+    let output = output.with_extension(video_format.to_string());
 
     let mut args = Vec::new();
-    args.extend(set_flags_for_loglevel(verbose));
-    args.extend(with_flip_or_default(input, flip));
-    args.extend(video_opt_to_vec(&encode_opt));
-    args.extend(audio_opt_to_vec(&encode_opt.audio_codec));
+    args.extend(loglevel_flag(verbose));
+    args.extend(flip_flag(input, flip));
+    args.extend(video_flag(video_codec, quality));
+    args.extend(audio_flag(audio_codec));
 
-    let output = output.with_extension(encode_opt.video_format.to_string());
     args.push(output.display().to_string());
 
     Ok(args)
@@ -201,109 +184,34 @@ fn single_file(
 
 fn multiple_file(
     input: &Path,
-    encode_opt: Option<EncodeOpt>,
+    encode_opts: EncodeOpts,
     command_str: &str,
     flip: bool,
     verbose: bool,
 ) -> Result<Vec<Vec<String>>> {
+    let EncodeOpts {
+        video_codec,
+        audio_codec,
+        video_format,
+        quality,
+    } = encode_opts;
+
     let mut args = Vec::new();
 
-    let inputs_ouputs_pair = generate_multiple_inputs_and_outputs(input, command_str)?;
-    let encode_opt = encode_opt.unwrap_or_default();
+    let inputs_ouputs_pair = get_inputs_and_outputs(input, command_str)?;
 
     for (input, output) in inputs_ouputs_pair {
-        let mut inner_args = Vec::new();
-        inner_args.extend(set_flags_for_loglevel(verbose));
-        inner_args.extend(with_flip_or_default(&input, flip));
-        inner_args.extend(video_opt_to_vec(&encode_opt));
-        inner_args.extend(audio_opt_to_vec(&encode_opt.audio_codec));
+        let output = output.with_extension(video_format.to_string());
 
-        let output = output.with_extension(encode_opt.video_format.to_string());
+        let mut inner_args = Vec::new();
+        inner_args.extend(loglevel_flag(verbose));
+        inner_args.extend(flip_flag(&input, flip));
+        inner_args.extend(video_flag(video_codec.clone(), quality));
+        inner_args.extend(audio_flag(audio_codec.clone()));
         inner_args.push(output.display().to_string());
 
         args.push(inner_args);
     }
 
     Ok(args)
-}
-
-pub fn video_opt_to_vec(encode_opt: &EncodeOpt) -> Vec<String> {
-    match encode_opt
-        .video_codec
-        .as_ref()
-        .unwrap_or(&DEFAULT_VIDEOCODEC)
-    {
-        ref enc @ VideoCodec::Av1 => {
-            vec![
-                "-c:v".to_string(),
-                enc.to_string(),
-                "-cq".to_string(),
-                encode_opt.cq.unwrap_or(DEFAULT_CQ_AV1).to_string(),
-                "-preset".to_string(),
-                "p5".to_string(),
-            ]
-        }
-        ref enc @ VideoCodec::Hevc => {
-            vec![
-                "-c:v".to_string(),
-                enc.to_string(),
-                "-cq".to_string(),
-                encode_opt.cq.unwrap_or(DEFAULT_CQ_HEVC).to_string(),
-                "-preset".to_string(),
-                "p5".to_string(),
-            ]
-        }
-        ref enc @ (VideoCodec::H264 | VideoCodec::H265) => {
-            vec![
-                "-c:v".to_string(),
-                enc.to_string(),
-                "-crf".to_string(),
-                encode_opt.crf.unwrap_or(DEFAULT_CRF).to_string(),
-                "-preset".to_string(),
-                "veryfast".to_string(),
-            ]
-        }
-    }
-}
-
-pub fn audio_opt_to_vec(audio_codec: &AudioCodec) -> Vec<String> {
-    match audio_codec {
-        ref enc @ AudioCodec::Aac => {
-            vec![
-                "-c:a".to_string(),
-                enc.to_string(),
-                "-b:a".to_string(),
-                "256k".to_string(),
-            ]
-        }
-        ref enc @ AudioCodec::Mp3 => {
-            vec![
-                "-c:a".to_string(),
-                enc.to_string(),
-                "-b:a".to_string(),
-                "320k".to_string(),
-            ]
-        }
-        ref enc @ AudioCodec::Opus => {
-            vec![
-                "-c:a".to_string(),
-                enc.to_string(),
-                "-b:a".to_string(),
-                "192k".to_string(),
-            ]
-        }
-    }
-}
-
-fn with_flip_or_default(input: &Path, flip: bool) -> Vec<String> {
-    if flip {
-        vec![
-            "-display_rotation:v:0".to_string(),
-            "-90.0".to_string(),
-            "-i".to_string(),
-            input.display().to_string(),
-        ]
-    } else {
-        vec!["-i".to_string(), input.display().to_string()]
-    }
 }

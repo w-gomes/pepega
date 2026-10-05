@@ -78,11 +78,7 @@ pub fn temp_list_for_video(dir: &Path, framerate: u64) -> Result<(NamedTempFile,
 }
 
 // unwrap the output or generate one
-pub fn get_or_generate_output(
-    input: &Path,
-    output: Option<PathBuf>,
-    prefix: &str,
-) -> Result<PathBuf> {
+pub fn get_output(input: &Path, output: Option<PathBuf>, prefix: &str) -> Result<PathBuf> {
     output
         .map_or_else(|| generate_output(input, prefix), Ok)
         .with_context(|| anyhow!("Could not get the output file for {}", input.display()))
@@ -108,10 +104,7 @@ fn generate_output(path: &Path, command_str: &str) -> Result<PathBuf> {
 }
 
 // Generate outputs from inputs in a directory
-pub fn generate_multiple_inputs_and_outputs(
-    dir: &Path,
-    command_str: &str,
-) -> Result<Vec<(PathBuf, PathBuf)>> {
+pub fn get_inputs_and_outputs(dir: &Path, command_str: &str) -> Result<Vec<(PathBuf, PathBuf)>> {
     let mut input_output_pair = Vec::new();
     for entry in WalkDir::new(dir)
         .into_iter()
@@ -138,12 +131,4 @@ fn is_hidden(entry: &DirEntry) -> bool {
         .file_name()
         .to_str()
         .is_some_and(|s| s.starts_with('.'))
-}
-
-pub fn set_flags_for_loglevel(verbose: bool) -> Vec<String> {
-    if verbose {
-        vec!["-loglevel".to_string(), "info".to_string()]
-    } else {
-        vec!["-loglevel".to_string(), "error".to_string()]
-    }
 }

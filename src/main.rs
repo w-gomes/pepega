@@ -6,12 +6,12 @@ mod commands;
 mod ffmpeg;
 mod utils;
 
-use crate::args::{AudioArgs, Commands, Config, Opts, VideoArgs, VideoCommands};
+use crate::args::{ClipCommand, Command, Config, Opts};
 use crate::commands::{
     audio, clip, clip_gif, encode, encode_upscale, encode_youtube, merge, video,
 };
 
-fn main() -> Result<()> {
+fn run() -> Result<()> {
     let opts = Opts::parse();
 
     let config = Config {
@@ -22,51 +22,34 @@ fn main() -> Result<()> {
         threads: opts.threads,
     };
 
-    match opts.commands {
-        Commands::Audio(AudioArgs { audio_codec }) => {
-            audio(config, &audio_codec)?;
-        }
+    match opts.command {
+        Command::Audio { audio_codec } => audio(config, audio_codec),
 
-        Commands::Video(VideoArgs { video_commands }) => match video_commands {
-            VideoCommands::Clip {
-                start,
-                end,
-                encode_opt,
-            } => {
-                if let Some(ref encode_opt) = encode_opt {
-                    encode_opt.check_quality_flags()?;
-                }
+        Command::Create { framerate } => video(config, framerate),
 
-                clip(config, &start, &end, encode_opt)?;
-            }
-
-            VideoCommands::Encode { encode_opt, flip } => {
-                encode_opt.check_quality_flags()?;
-                encode(config, encode_opt, flip)?;
-            }
-
-            VideoCommands::Merge { encode_opt } => {
-                encode_opt.check_quality_flags()?;
-                merge(config, &encode_opt)?;
-            }
-
-            VideoCommands::Youtube { flip } => {
-                encode_youtube(config, flip)?;
-            }
-
-            VideoCommands::Upscale { flip } => {
-                encode_upscale(config, flip)?;
-            }
-
-            VideoCommands::Gif { start, end } => {
-                clip_gif(config, &start, &end)?;
-            }
+        Command::Clip {
+            start,
+            end,
+            encode_command,
+        } => match encode_command {
+            ClipCommand::Copy => clip(config, &start, &end, None),
+            ClipCommand::Encode(encode_opts) => clip(config, &start, &end, Some(encode_opts)),
+            ClipCommand::Gif => clip_gif(config, &start, &end),
         },
 
-        Commands::ToVideo { framerate } => {
-            video(config, framerate)?;
-        }
-    }
+        Command::Encode { encode_opts, flip } => encode(config, encode_opts, flip),
 
-    Ok(())
+        Command::Merge { encode_opts } => merge(config, encode_opts),
+
+        Command::Youtube { flip } => encode_youtube(config, flip),
+
+        Command::Upscale { flip } => encode_upscale(config, flip),
+    }
+}
+
+fn main() {
+    if let Err(err) = run() {
+        eprintln!("Error: {err:?}");
+        std::process::exit(1);
+    }
 }
