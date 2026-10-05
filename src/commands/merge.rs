@@ -1,13 +1,13 @@
-use anyhow::{Result, bail};
+use anyhow::{Result, ensure};
 
-use crate::args::{Config, EncodeOpt};
-use crate::commands::encode::video_opt_to_vec;
+use crate::args::{Config, EncodeOpts};
+use crate::commands::{audio_flag, loglevel_flag, video_flag};
 use crate::ffmpeg::try_run_ffmpeg;
-use crate::utils::{generate_inputs_and_filters, get_or_generate_output, set_flags_for_loglevel};
+use crate::utils::{generate_inputs_and_filters, get_output};
 
 const MERGE: &str = "MERGE";
 
-pub fn merge(config: Config, encode_opt: &EncodeOpt) -> Result<()> {
+pub fn merge(config: Config, encode_opts: EncodeOpts) -> Result<()> {
     let Config {
         input,
         output,
@@ -16,17 +16,21 @@ pub fn merge(config: Config, encode_opt: &EncodeOpt) -> Result<()> {
         ..
     } = config;
 
-    if !input.is_dir() {
-        bail!("Input must be a directory");
-    }
+    let EncodeOpts {
+        video_codec,
+        audio_codec,
+        video_format,
+        quality,
+    } = encode_opts;
 
-    let output = get_or_generate_output(&input, output, MERGE)?;
+    ensure!(input.is_dir(), "input must be a directory.");
 
-    let mut args = Vec::new();
-
+    let output = get_output(&input, output, MERGE)?;
+    let output = output.with_extension(video_format.to_string());
     let (inputs, filters) = generate_inputs_and_filters(&input)?;
 
-    args.extend(set_flags_for_loglevel(verbose));
+    let mut args = Vec::new();
+    args.extend(loglevel_flag(verbose));
     args.extend(inputs);
     args.extend_from_slice(&[
         "-filter_complex".to_string(),
@@ -36,9 +40,8 @@ pub fn merge(config: Config, encode_opt: &EncodeOpt) -> Result<()> {
         "-map".to_string(),
         "[a]".to_string(),
     ]);
-    args.extend(video_opt_to_vec(encode_opt));
-
-    let output = output.with_extension(encode_opt.video_format.to_string());
+    args.extend(video_flag(video_codec, quality));
+    args.extend(audio_flag(audio_codec));
     args.push(output.display().to_string());
 
     println!("Merging multiple videos");

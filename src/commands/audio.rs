@@ -1,13 +1,13 @@
-use anyhow::{Result, bail};
+use anyhow::{Result, ensure};
 
 use crate::args::{AudioCodec, Config};
-use crate::commands::encode::audio_opt_to_vec;
+use crate::commands::{audio_flag, loglevel_flag};
 use crate::ffmpeg::try_run_ffmpeg;
-use crate::utils::{get_or_generate_output, set_flags_for_loglevel};
+use crate::utils::get_output;
 
 const AUDIO: &str = "AUDIO";
 
-pub fn audio(config: Config, audio_codec: &AudioCodec) -> Result<()> {
+pub fn audio(config: Config, audio_codec: AudioCodec) -> Result<()> {
     let Config {
         input,
         output,
@@ -16,14 +16,12 @@ pub fn audio(config: Config, audio_codec: &AudioCodec) -> Result<()> {
         ..
     } = config;
 
-    if !input.is_file() {
-        bail!("Input must be a file");
-    }
+    ensure!(input.is_file(), "input must be a file.");
 
-    let output = get_or_generate_output(&input, output, AUDIO)?;
+    let output = get_output(&input, output, AUDIO)?;
 
     let mut args = Vec::new();
-    args.extend(set_flags_for_loglevel(verbose));
+    args.extend(loglevel_flag(verbose));
     args.extend_from_slice(&[
         "-i".to_string(),
         input.display().to_string(),
@@ -35,17 +33,17 @@ pub fn audio(config: Config, audio_codec: &AudioCodec) -> Result<()> {
     match audio_codec {
         enc @ AudioCodec::Aac => {
             let output = output.with_extension("aac");
-            args.extend(audio_opt_to_vec(enc));
+            args.extend(audio_flag(enc));
             args.push(output.display().to_string());
         }
         enc @ AudioCodec::Mp3 => {
             let output = output.with_extension("mp3");
-            args.extend(audio_opt_to_vec(enc));
+            args.extend(audio_flag(enc));
             args.push(output.display().to_string());
         }
         enc @ AudioCodec::Opus => {
             let output = output.with_extension("ogg");
-            args.extend(audio_opt_to_vec(enc));
+            args.extend(audio_flag(enc));
             args.push(output.display().to_string());
         }
     }
