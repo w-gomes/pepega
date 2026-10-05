@@ -1,5 +1,9 @@
 use std::path::PathBuf;
 
+use clap::builder::{
+    Styles,
+    styling::{AnsiColor, Effects},
+};
 use clap::{Args, Parser, Subcommand, ValueEnum};
 
 const DEFAULT_FRAMERATE: u64 = 5;
@@ -19,6 +23,15 @@ HEVC      AV1
 [30+]     [34+]
 ";
 
+const STYLES: Styles = Styles::styled()
+    .header(AnsiColor::Blue.on_default().effects(Effects::BOLD))
+    .usage(AnsiColor::Blue.on_default().effects(Effects::BOLD))
+    .literal(AnsiColor::Green.on_default().effects(Effects::BOLD))
+    .placeholder(AnsiColor::Yellow.on_default().effects(Effects::BOLD))
+    .valid(AnsiColor::Cyan.on_default().effects(Effects::BOLD))
+    .invalid(AnsiColor::Yellow.on_default().effects(Effects::BOLD))
+    .error(AnsiColor::Red.on_default().effects(Effects::UNDERLINE));
+
 pub struct Config {
     pub input: PathBuf,
     pub output: Option<PathBuf>,
@@ -28,7 +41,7 @@ pub struct Config {
 }
 
 #[derive(Debug, Parser)]
-#[command(about = ABOUT, author, version, max_term_width = 80)]
+#[command(about = ABOUT, author, version, max_term_width = 80, styles = STYLES)]
 pub struct Opts {
     #[command(subcommand)]
     pub command: Command,

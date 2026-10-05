@@ -1,10 +1,10 @@
-use std::path::Path;
-
 mod audio;
 mod clip;
 mod encode;
 mod merge;
 mod video;
+
+use std::path::Path;
 
 pub use audio::audio;
 pub use clip::{clip, clip_gif};

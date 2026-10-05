@@ -1,10 +1,10 @@
-use anyhow::Result;
-use clap::Parser;
-
 mod args;
 mod commands;
 mod ffmpeg;
 mod utils;
+
+use anyhow::Result;
+use clap::Parser;
 
 use crate::args::{ClipCommand, Command, Config, Opts};
 use crate::commands::{
