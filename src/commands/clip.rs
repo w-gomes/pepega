@@ -6,6 +6,7 @@ use crate::ffmpeg::try_run_ffmpeg;
 use crate::utils::get_output;
 
 const CLIP: &str = "CLIP";
+const CLIP_COPY: &str = "CLIP_COPY";
 const CLIP_GIF: &str = "CLIP_GIF";
 
 pub fn clip(config: Config, start: &str, end: &str, encode_opts: Option<EncodeOpts>) -> Result<()> {
@@ -19,7 +20,13 @@ pub fn clip(config: Config, start: &str, end: &str, encode_opts: Option<EncodeOp
 
     ensure!(input.is_file(), "input must be a file.");
 
-    let output = get_output(&input, output, CLIP)?;
+    let cmd_str = if encode_opts.is_some() {
+        CLIP
+    } else {
+        CLIP_COPY
+    };
+
+    let output = get_output(&input, output, cmd_str)?;
 
     let mut args = Vec::new();
     args.extend(loglevel_flag(verbose));

@@ -19,9 +19,9 @@ where
 
     let result = ffmpeg.wait_with_output()?;
     if !result.status.success() {
+        let ffmpeg_error_msg = String::from_utf8(result.stderr)?;
         return Err(anyhow!(
-            "-- Failed to execute FFmpeg.\n\t[ Error code: {:?} ]",
-            result.status.code()
+            "Failed to execute FFmpeg!\nFFmpeg Error: {ffmpeg_error_msg:?}"
         ));
     }
 
