@@ -30,6 +30,9 @@ pub struct Config {
 #[derive(Debug, Parser)]
 #[command(about = ABOUT, author, version, max_term_width = 80)]
 pub struct Opts {
+    #[command(subcommand)]
+    pub command: Command,
+
     /// The input file or directory.
     #[arg(short, long)]
     pub input: PathBuf,
@@ -38,20 +41,17 @@ pub struct Opts {
     #[arg(short, long)]
     pub output: Option<PathBuf>,
 
-    /// Don't do anything, only print the arguments.
-    #[arg(long, aliases = ["dry", "test"], default_value_t = false, global = true)]
-    pub dry_run: bool,
-
-    /// Set ffmpeg log level to verbose.
-    #[arg(long, default_value_t = false, global = true)]
-    pub verbose: bool,
-
     /// Set the number of threads for rayon's thread pool.
     #[arg(short = 'j', long, alias = "jobs", global = true)]
     pub threads: Option<usize>,
 
-    #[command(subcommand)]
-    pub command: Command,
+    /// Set ffmpeg log level to verbose.
+    #[arg(short, long, default_value_t = false, global = true)]
+    pub verbose: bool,
+
+    /// Don't do anything, only print the arguments.
+    #[arg(short, long, alias = "test", default_value_t = false, global = true)]
+    pub dry_run: bool,
 }
 
 #[derive(Debug, Subcommand)]
@@ -66,7 +66,7 @@ pub enum Command {
     /// Create a video from images.
     Create {
         /// Set the framerate.
-        /// E.g. --framerate 1 each images becomes one second of video.
+        /// E.g. --framerate 1 each image becomes one second of video.
         #[arg(long,
               default_value_t = {DEFAULT_FRAMERATE},
               value_parser = clap::value_parser!(u64).range(1..=15))]
@@ -91,7 +91,7 @@ pub enum Command {
         encode_opts: EncodeOpts,
 
         /// Flip (rotate) the output clockwise 90 degrees.
-        #[arg(long)]
+        #[arg(short, long)]
         flip: bool,
     },
 
@@ -104,7 +104,7 @@ pub enum Command {
     /// Encode a video with specific flags for `Youtube`.
     Youtube {
         /// Flip (rotate) the output clockwise 90 degrees.
-        #[arg(long)]
+        #[arg(short, long)]
         flip: bool,
     },
 
@@ -113,7 +113,7 @@ pub enum Command {
     /// See for more detail `<https://trac.ffmpeg.org/wiki/Encode/YouTube#Upscalingvideoforhigherpeakquality>`
     Upscale {
         /// Flip (rotate) the output clockwise 90 degrees.
-        #[arg(long)]
+        #[arg(short, long)]
         flip: bool,
     },
 }
@@ -127,6 +127,7 @@ pub enum ClipCommand {
     Encode(EncodeOpts),
 
     /// Encode the ouput as `gif`.
+    ///
     /// Note: `gif` file is large, even for short clip.
     Gif,
 }
