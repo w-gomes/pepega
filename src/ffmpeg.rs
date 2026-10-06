@@ -21,7 +21,7 @@ where
     if !result.status.success() {
         let ffmpeg_error_msg = String::from_utf8(result.stderr)?;
         return Err(anyhow!(
-            "Failed to execute FFmpeg!\nFFmpeg Error: {ffmpeg_error_msg:?}"
+            "failed to execute FFmpeg!\nFFmpeg Error: {ffmpeg_error_msg:?}"
         ));
     }
 
@@ -82,13 +82,13 @@ pub fn try_run_ffmpeg_par(
         rayon::ThreadPoolBuilder::new()
             .num_threads(threads)
             .build_global()
-            .with_context(|| "Failed to create a thread pool".to_string())?;
+            .with_context(|| "failed to create a thread pool".to_string())?;
 
         let started = Instant::now();
 
         let style = ProgressStyle::default_bar()
             .template("{spinner:.green} [{elapsed_precise}] [{bar:40.cyan/blue}] {pos}/{len} {msg}")
-            .with_context(|| anyhow!("Failed to create ProgressStyle"))?
+            .with_context(|| anyhow!("failed to create ProgressStyle"))?
             .progress_chars("#>-");
 
         let bar = ProgressBar::new(args.len() as u64);

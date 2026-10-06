@@ -1,4 +1,4 @@
-use anyhow::{Result, ensure};
+use anyhow::{Result, bail, ensure};
 
 use crate::args::{Config, EncodeOpts};
 use crate::commands::{audio_flag, loglevel_flag, video_flag};
@@ -22,6 +22,12 @@ pub fn merge(config: Config, encode_opts: EncodeOpts) -> Result<()> {
         video_format,
         quality,
     } = encode_opts;
+
+    if let Ok(exists) = input.try_exists()
+        && !exists
+    {
+        bail!("input doesn't exist.");
+    }
 
     ensure!(input.is_dir(), "input must be a directory.");
 
