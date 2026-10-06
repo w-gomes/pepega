@@ -1,4 +1,4 @@
-use anyhow::{Result, ensure};
+use anyhow::{Result, bail, ensure};
 
 use crate::args::{Config, EncodeOpts, VideoFormat};
 use crate::commands::{audio_flag, loglevel_flag, video_flag};
@@ -17,6 +17,12 @@ pub fn clip(config: Config, start: &str, end: &str, encode_opts: Option<EncodeOp
         verbose,
         ..
     } = config;
+
+    if let Ok(exists) = input.try_exists()
+        && !exists
+    {
+        bail!("input doesn't exist.");
+    }
 
     ensure!(input.is_file(), "input must be a file.");
 

@@ -4,7 +4,7 @@ use std::{
     path::{Path, PathBuf},
 };
 
-use anyhow::{Context, Result, anyhow};
+use anyhow::{Context, Result, anyhow, ensure};
 use chrono::Local;
 use tempfile::{Builder, NamedTempFile};
 use walkdir::{DirEntry, WalkDir};
@@ -41,7 +41,7 @@ pub fn generate_inputs_and_filters(dir: &Path) -> Result<(Vec<String>, String)> 
     debug_assert_eq!(inputs.len() % 2, 0);
     if (len) < 2 {
         return Err(anyhow!(
-            "Not enough video file to merge. {} contains: {}",
+            "directory `{}` doesn't have enough videos. it contains {}",
             dir.display(),
             len
         ));
@@ -72,11 +72,18 @@ pub fn temp_list_for_video(dir: &Path, framerate: u64) -> Result<(NamedTempFile,
     {
         let entry = entry.path();
         let entry = fs::canonicalize(entry)
-            .with_context(|| format!("Failed to get the absolute path of {}", entry.display()))?;
+            .with_context(|| format!("failed to get the absolute path of {}", entry.display()))?;
         writeln!(temp_file, "file '{}'", entry.display())?;
         writeln!(temp_file, "duration {framerate}")?;
         total_images += 1;
     }
+
+    ensure!(
+        total_images > 1,
+        "directory `{}` doesn't have enough images. it contains {}.",
+        dir.display(),
+        total_images
+    );
 
     Ok((temp_file, total_images))
 }
@@ -85,7 +92,7 @@ pub fn temp_list_for_video(dir: &Path, framerate: u64) -> Result<(NamedTempFile,
 pub fn get_output(input: &Path, output: Option<PathBuf>, prefix: &str) -> Result<PathBuf> {
     output
         .map_or_else(|| generate_output(input, prefix), Ok)
-        .with_context(|| anyhow!("Could not get the output file for {}", input.display()))
+        .with_context(|| anyhow!("could not get the output file for `{}`", input.display()))
 }
 
 // Generate an output name

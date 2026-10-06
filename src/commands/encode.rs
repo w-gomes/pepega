@@ -1,6 +1,6 @@
 use std::path::{Path, PathBuf};
 
-use anyhow::Result;
+use anyhow::{Result, bail};
 
 use crate::args::{Config, EncodeOpts, VideoFormat};
 use crate::commands::{audio_flag, flip_flag, loglevel_flag, video_flag};
@@ -19,6 +19,12 @@ pub fn encode(config: Config, encode_opts: EncodeOpts, flip: bool) -> Result<()>
         verbose,
         threads,
     } = config;
+
+    if let Ok(exists) = input.try_exists()
+        && !exists
+    {
+        bail!("input doesn't exist.");
+    }
 
     if input.is_file() {
         let args = single_file(&input, output, encode_opts, flip, verbose)?;
@@ -41,6 +47,12 @@ pub fn encode_youtube(config: Config, flip: bool) -> Result<()> {
         verbose,
         threads,
     } = config;
+
+    if let Ok(exists) = input.try_exists()
+        && !exists
+    {
+        bail!("input doesn't exist.");
+    }
 
     let output_flags = vec![
         "-c:v".to_string(),
@@ -101,6 +113,12 @@ pub fn encode_upscale(config: Config, flip: bool) -> Result<()> {
         verbose,
         threads,
     } = config;
+
+    if let Ok(exists) = input.try_exists()
+        && !exists
+    {
+        bail!("input doesn't exist.");
+    }
 
     let output_flags = vec![
         "-vf".to_string(),

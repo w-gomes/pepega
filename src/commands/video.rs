@@ -1,4 +1,4 @@
-use anyhow::{Result, ensure};
+use anyhow::{Result, bail, ensure};
 
 use crate::args::{Config, VideoFormat};
 use crate::commands::loglevel_flag;
@@ -15,6 +15,12 @@ pub fn video(config: Config, framerate: u64) -> Result<()> {
         verbose,
         ..
     } = config;
+
+    if let Ok(exists) = input.try_exists()
+        && !exists
+    {
+        bail!("input doesn't exist.");
+    }
 
     ensure!(input.is_dir(), "input must be a directory.");
 
