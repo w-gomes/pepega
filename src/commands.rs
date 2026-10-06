@@ -86,7 +86,7 @@ pub fn video_flag(video_codec: VideoCodec, quality: Option<u64>) -> Vec<String> 
                 "-preset".to_string(),
                 "p5".to_string(),
                 "-level".to_string(),
-                5.1.to_string(),
+                4.1.to_string(),
             ]
         }
         codec @ VideoCodec::Hevc => {
