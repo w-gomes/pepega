@@ -16,7 +16,7 @@ use crate::args::{AudioCodec, VideoCodec};
 
 pub const DEFAULT_CRF: u64 = 23;
 pub const DEFAULT_CQ_AV1: u64 = 28;
-pub const DEFAULT_CQ_HEVC: u64 = 24;
+pub const DEFAULT_QP_HEVC: u64 = 24;
 
 pub fn loglevel_flag(verbose: bool) -> Vec<String> {
     if verbose {
@@ -59,7 +59,7 @@ pub fn video_flag(video_codec: VideoCodec, quality: Option<u64>) -> Vec<String> 
     let quality = quality.unwrap_or(match video_codec {
         VideoCodec::H264 | VideoCodec::H265 => DEFAULT_CRF,
         VideoCodec::Av1 => DEFAULT_CQ_AV1,
-        VideoCodec::Hevc => DEFAULT_CQ_HEVC,
+        VideoCodec::Hevc => DEFAULT_QP_HEVC,
     });
 
     match video_codec {
@@ -73,11 +73,29 @@ pub fn video_flag(video_codec: VideoCodec, quality: Option<u64>) -> Vec<String> 
                 "veryfast".to_string(),
             ]
         }
-        codec @ (VideoCodec::Av1 | VideoCodec::Hevc) => {
+        codec @ VideoCodec::Av1 => {
             vec![
                 "-c:v".to_string(),
                 codec.to_string(),
+                "-rc".to_string(),
+                "vbr".to_string(),
                 "-cq".to_string(),
+                quality.to_string(),
+                "-b:v".to_string(),
+                0.to_string(),
+                "-preset".to_string(),
+                "p5".to_string(),
+                "-level".to_string(),
+                5.1.to_string(),
+            ]
+        }
+        codec @ VideoCodec::Hevc => {
+            vec![
+                "-c:v".to_string(),
+                codec.to_string(),
+                "-rc".to_string(),
+                "constqp".to_string(),
+                "-qp".to_string(),
                 quality.to_string(),
                 "-preset".to_string(),
                 "p5".to_string(),
