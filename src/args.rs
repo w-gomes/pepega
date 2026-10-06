@@ -12,15 +12,13 @@ const ABOUT: &str = "A command line wrapper for common `FFmpeg` tasks.";
 
 const QUALITY_HELP_TEXT: &str = "The quality flag.
 
-For H264 and H265, the flag --crf is used, with a value in [0..=51]. \
-For AV1 and HEVC, the flag --cq is used, with a value in [1..=63].
-Reasonable values for --crf: [17..28]
-Reasonable values for --cq:
+Set the quality with value in [0..=51]
+For H264 and H265, the flag crf is used. \
+Whereas for AV1 and HEVC, the flag cq and qp is used respectively.
 
-HEVC      AV1
-[18..22]  [22..26]
-[24..28]  [28..32]
-[30+]     [34+]
+Reasonable values for crf: [17..28]
+Reasonable values for qp using hevc: [22..34]
+Reasonable values for cq using av1: [26..36]
 ";
 
 const STYLES: Styles = Styles::styled()
