@@ -1,7 +1,9 @@
+use std::process::Command;
+
 use anyhow::{Result, bail, ensure};
 
 use crate::args::{AudioCodec, Config};
-use crate::commands::{audio_flag, loglevel_flag};
+use crate::commands::{FFMPEG, audio_flags, loglevel_flags, push_args};
 use crate::ffmpeg::try_run_ffmpeg;
 use crate::utils::get_output;
 
@@ -26,36 +28,34 @@ pub fn audio(config: Config, audio_codec: AudioCodec) -> Result<()> {
 
     let output = get_output(&input, output, AUDIO)?;
 
-    let mut args = Vec::new();
-    args.extend(loglevel_flag(verbose));
-    args.extend_from_slice(&[
-        "-i".to_string(),
-        input.display().to_string(),
-        "-vn".to_string(),
-    ]);
+    let mut cmd = Command::new(FFMPEG);
+
+    loglevel_flags(&mut cmd, verbose);
+
+    push_args![cmd => ["-i", input, "-vn"]];
 
     // The output is added together with audio_codec, because the file format
     // depends on it.
     match audio_codec {
         enc @ AudioCodec::Aac => {
+            audio_flags(&mut cmd, enc);
             let output = output.with_extension("aac");
-            args.extend(audio_flag(enc));
-            args.push(output.display().to_string());
+            cmd.arg(output);
         }
         enc @ AudioCodec::Mp3 => {
+            audio_flags(&mut cmd, enc);
             let output = output.with_extension("mp3");
-            args.extend(audio_flag(enc));
-            args.push(output.display().to_string());
+            cmd.arg(output);
         }
         enc @ AudioCodec::Opus => {
+            audio_flags(&mut cmd, enc);
             let output = output.with_extension("ogg");
-            args.extend(audio_flag(enc));
-            args.push(output.display().to_string());
+            cmd.arg(output);
         }
     }
 
     println!("Extracting audio...");
-    try_run_ffmpeg(dry_run, args)?;
+    try_run_ffmpeg(dry_run, cmd)?;
 
     Ok(())
 }
