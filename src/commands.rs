@@ -85,13 +85,13 @@ pub fn flip_flags(cmd: &mut Command) {
 
 // macro helper for cmd.arg(..);
 //
-// push_args! { cmd =>
+// push_args! [ cmd =>
 //   [
 //      "c:v", "libx264",
 //      "-crf", "20",
 //      "-preset", "veryfast",
 //   ]
-// }
+// ]
 //
 #[macro_export]
 macro_rules! push_args [
