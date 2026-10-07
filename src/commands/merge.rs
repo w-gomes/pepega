@@ -1,7 +1,9 @@
+use std::process::Command;
+
 use anyhow::{Result, bail, ensure};
 
 use crate::args::{Config, EncodeOpts};
-use crate::commands::{audio_flag, loglevel_flag, video_flag};
+use crate::commands::{FFMPEG, audio_flags, loglevel_flags, push_args, video_flags};
 use crate::ffmpeg::try_run_ffmpeg;
 use crate::utils::{generate_inputs_and_filters, get_output};
 
@@ -31,27 +33,29 @@ pub fn merge(config: Config, encode_opts: EncodeOpts) -> Result<()> {
 
     ensure!(input.is_dir(), "input must be a directory.");
 
+    let mut cmd = Command::new(FFMPEG);
+
     let output = get_output(&input, output, MERGE)?;
     let output = output.with_extension(video_format.to_string());
+
     let (inputs, filters) = generate_inputs_and_filters(&input)?;
 
-    let mut args = Vec::new();
-    args.extend(loglevel_flag(verbose));
-    args.extend(inputs);
-    args.extend_from_slice(&[
-        "-filter_complex".to_string(),
-        filters,
-        "-map".to_string(),
-        "[v]".to_string(),
-        "-map".to_string(),
-        "[a]".to_string(),
-    ]);
-    args.extend(video_flag(video_codec, quality));
-    args.extend(audio_flag(audio_codec));
-    args.push(output.display().to_string());
+    loglevel_flags(&mut cmd, verbose);
+
+    cmd.args(inputs);
+
+    push_args![cmd => [
+        "-filter_complex", filters.as_str(),
+        "-map", "[v]",
+        "-map", "[a]",
+    ]];
+
+    video_flags(&mut cmd, video_codec, quality);
+    audio_flags(&mut cmd, audio_codec);
+    cmd.arg(output);
 
     println!("Merging multiple videos");
-    try_run_ffmpeg(dry_run, args)?;
+    try_run_ffmpeg(dry_run, cmd)?;
 
     Ok(())
 }

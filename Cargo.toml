@@ -1,6 +1,6 @@
 [package]
 name = "pepega"
-version = "0.12.2-alpha.1"
+version = "0.12.3-alpha.1"
 edition = "2024"
 
 [dependencies]

@@ -1,9 +1,10 @@
 use std::path::{Path, PathBuf};
+use std::process::Command;
 
 use anyhow::{Result, bail};
 
 use crate::args::{Config, EncodeOpts, VideoFormat};
-use crate::commands::{audio_flag, flip_flag, loglevel_flag, video_flag};
+use crate::commands::{FFMPEG, audio_flags, flip_flags, loglevel_flags, push_args, video_flags};
 use crate::ffmpeg::{try_run_ffmpeg, try_run_ffmpeg_par};
 use crate::utils::{get_inputs_and_outputs, get_output};
 
@@ -54,48 +55,54 @@ pub fn encode_youtube(config: Config, flip: bool) -> Result<()> {
         bail!("input doesn't exist.");
     }
 
-    let output_flags = vec![
-        "-c:v".to_string(),
-        "libx264".to_string(),
-        "-crf".to_string(),
-        "18".to_string(),
-        "-preset".to_string(),
-        "medium".to_string(),
-        "-c:a".to_string(),
-        "aac".to_string(),
-        "-b:a".to_string(),
-        "384k".to_string(),
-        "-pix_fmt".to_string(),
-        "yuv420p".to_string(),
+    let output_flags = &[
+        "-c:v", "libx264", "-crf", "18", "-preset", "medium", "-c:a", "aac", "-b:a", "384k",
+        "-pix_fmt", "yuv420p",
     ];
 
     if input.is_file() {
         let output = get_output(&input, output, ENCODE_YOUTUBE)?;
+
+        let mut cmd = Command::new(FFMPEG);
+
+        loglevel_flags(&mut cmd, verbose);
+
+        if flip {
+            flip_flags(&mut cmd);
+        }
+
+        push_args![cmd => ["-i", input]];
+
+        cmd.args(output_flags);
+
         let video_format = VideoFormat::default();
         let output = output.with_extension(video_format.to_string());
-
-        let mut args = Vec::new();
-        args.extend(loglevel_flag(verbose));
-        args.extend(flip_flag(&input, flip));
-        args.extend(output_flags);
-        args.push(output.display().to_string());
+        cmd.arg(output);
 
         println!("Encoding a single file for youtube");
-        try_run_ffmpeg(dry_run, args)?;
+        try_run_ffmpeg(dry_run, cmd)?;
     } else if input.is_dir() {
         let inputs_outputs_pair = get_inputs_and_outputs(&input, ENCODE_YOUTUBE)?;
 
         let mut args = Vec::new();
         for (input, output) in inputs_outputs_pair {
+            let mut cmd = Command::new(FFMPEG);
+
+            loglevel_flags(&mut cmd, verbose);
+
+            if flip {
+                flip_flags(&mut cmd);
+            }
+
+            push_args![cmd => ["-i", input]];
+
+            cmd.args(output_flags);
+
             let video_format = VideoFormat::default();
             let output = output.with_extension(video_format.to_string());
+            cmd.arg(output);
 
-            let mut inner_args = Vec::new();
-            inner_args.extend(loglevel_flag(verbose));
-            inner_args.extend(flip_flag(&input, flip));
-            inner_args.extend(output_flags.clone());
-            inner_args.push(output.display().to_string());
-            args.push(inner_args);
+            args.push(cmd);
         }
 
         println!("Encoding multiple files for youtube");
@@ -120,49 +127,64 @@ pub fn encode_upscale(config: Config, flip: bool) -> Result<()> {
         bail!("input doesn't exist.");
     }
 
-    let output_flags = vec![
-        "-vf".to_string(),
-        "scale=iw*2:ih*2:flags=neighbor".to_string(),
-        "-c:v".to_string(),
-        "libx264".to_string(),
-        "-crf".to_string(),
-        "18".to_string(),
-        "-preset".to_string(),
-        "slow".to_string(),
-        "-c:a".to_string(),
-        "aac".to_string(),
-        "-b:a".to_string(),
-        "384k".to_string(),
+    let output_flags = &[
+        "-vf",
+        "scale=iw*2:ih*2:flags=neighbor",
+        "-c:v",
+        "libx264",
+        "-crf",
+        "18",
+        "-preset",
+        "slow",
+        "-c:a",
+        "aac",
+        "-b:a",
+        "384k",
     ];
 
     if input.is_file() {
         let output = get_output(&input, output, ENCODE_UPSCALE)?;
+
+        let mut cmd = Command::new(FFMPEG);
+
+        loglevel_flags(&mut cmd, verbose);
+
+        if flip {
+            flip_flags(&mut cmd);
+        }
+
+        push_args![cmd => ["-i", input]];
+
+        cmd.args(output_flags);
+
         let video_format = VideoFormat::default();
         let output = output.with_extension(video_format.to_string());
-
-        let mut args = Vec::new();
-        args.extend(loglevel_flag(verbose));
-        args.extend(flip_flag(&input, flip));
-        args.extend(output_flags);
-        args.push(output.display().to_string());
+        cmd.arg(output);
 
         println!("Encoding a single file upscaled");
-        try_run_ffmpeg(dry_run, args)?;
+        try_run_ffmpeg(dry_run, cmd)?;
     } else if input.is_dir() {
         let inputs_outputs_pair = get_inputs_and_outputs(&input, ENCODE_UPSCALE)?;
 
         let mut args = Vec::new();
         for (input, output) in inputs_outputs_pair {
+            let mut cmd = Command::new(FFMPEG);
+
+            loglevel_flags(&mut cmd, verbose);
+
+            if flip {
+                flip_flags(&mut cmd);
+            }
+
+            push_args![cmd => ["-i", input]];
+
+            cmd.args(output_flags);
+
             let video_format = VideoFormat::default();
             let output = output.with_extension(video_format.to_string());
+            cmd.arg(output);
 
-            let mut inner_args = Vec::new();
-            inner_args.extend(loglevel_flag(verbose));
-            inner_args.extend(flip_flag(&input, flip));
-            inner_args.extend(output_flags.clone());
-
-            inner_args.push(output.display().to_string());
-            args.push(inner_args);
+            args.push(cmd);
         }
 
         println!("Encoding multiple files upscaled");
@@ -178,7 +200,7 @@ fn single_file(
     encode_opts: EncodeOpts,
     flip: bool,
     verbose: bool,
-) -> Result<Vec<String>> {
+) -> Result<Command> {
     let EncodeOpts {
         video_codec,
         audio_codec,
@@ -186,18 +208,24 @@ fn single_file(
         quality,
     } = encode_opts;
 
+    let mut cmd = Command::new(FFMPEG);
+
+    loglevel_flags(&mut cmd, verbose);
+
+    if flip {
+        flip_flags(&mut cmd);
+    }
+
+    push_args![cmd => ["-i", input]];
+
+    video_flags(&mut cmd, video_codec, quality);
+    audio_flags(&mut cmd, audio_codec);
+
     let output = get_output(input, output, ENCODE)?;
     let output = output.with_extension(video_format.to_string());
+    cmd.arg(output);
 
-    let mut args = Vec::new();
-    args.extend(loglevel_flag(verbose));
-    args.extend(flip_flag(input, flip));
-    args.extend(video_flag(video_codec, quality));
-    args.extend(audio_flag(audio_codec));
-
-    args.push(output.display().to_string());
-
-    Ok(args)
+    Ok(cmd)
 }
 
 fn multiple_file(
@@ -206,7 +234,7 @@ fn multiple_file(
     command_str: &str,
     flip: bool,
     verbose: bool,
-) -> Result<Vec<Vec<String>>> {
+) -> Result<Vec<Command>> {
     let EncodeOpts {
         video_codec,
         audio_codec,
@@ -219,16 +247,23 @@ fn multiple_file(
     let inputs_ouputs_pair = get_inputs_and_outputs(input, command_str)?;
 
     for (input, output) in inputs_ouputs_pair {
+        let mut cmd = Command::new(FFMPEG);
+
+        loglevel_flags(&mut cmd, verbose);
+
+        if flip {
+            flip_flags(&mut cmd);
+        }
+
+        push_args![cmd => ["-i", input]];
+
+        video_flags(&mut cmd, video_codec.clone(), quality);
+        audio_flags(&mut cmd, audio_codec.clone());
+
         let output = output.with_extension(video_format.to_string());
+        cmd.arg(output);
 
-        let mut inner_args = Vec::new();
-        inner_args.extend(loglevel_flag(verbose));
-        inner_args.extend(flip_flag(&input, flip));
-        inner_args.extend(video_flag(video_codec.clone(), quality));
-        inner_args.extend(audio_flag(audio_codec.clone()));
-        inner_args.push(output.display().to_string());
-
-        args.push(inner_args);
+        args.push(cmd);
     }
 
     Ok(args)

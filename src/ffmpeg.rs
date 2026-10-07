@@ -7,32 +7,11 @@ use rayon::prelude::*;
 
 const DEFAULT_NUM_THREADS: usize = 1;
 
-fn ffmpeg<Iter>(args: Iter) -> Result<()>
-where
-    Iter: std::iter::IntoIterator<Item = String>,
-{
-    let ffmpeg = Command::new("ffmpeg")
-        .args(args)
-        .stderr(Stdio::piped())
-        .stdout(Stdio::piped())
-        .spawn()?;
-
-    let result = ffmpeg.wait_with_output()?;
-    if !result.status.success() {
-        let ffmpeg_error_msg = String::from_utf8(result.stderr)?;
-        return Err(anyhow!(
-            "failed to execute FFmpeg!\nFFmpeg Error: {ffmpeg_error_msg:?}"
-        ));
-    }
-
-    Ok(())
-}
-
-pub fn try_run_ffmpeg(dry_run: bool, args: Vec<String>) -> Result<()> {
+pub fn try_run_ffmpeg(dry_run: bool, cmd: Command) -> Result<()> {
     if dry_run {
-        let args = args.join(" ");
+        let args = cmd.get_args().collect::<Vec<_>>();
         println!("dry run... doing nothing.");
-        println!("ffmpeg {args}");
+        println!("ffmpeg {args:?}");
         println!("------");
     } else {
         let started = Instant::now();
@@ -47,7 +26,7 @@ pub fn try_run_ffmpeg(dry_run: bool, args: Vec<String>) -> Result<()> {
         spinner.enable_steady_tick(Duration::from_millis(200));
         spinner.set_message("Waiting...");
 
-        ffmpeg(args)?;
+        run_ffmpeg(cmd)?;
 
         spinner.finish_and_clear();
         println!("Done in {}", HumanDuration(started.elapsed()));
@@ -56,17 +35,13 @@ pub fn try_run_ffmpeg(dry_run: bool, args: Vec<String>) -> Result<()> {
     Ok(())
 }
 
-pub fn try_run_ffmpeg_par(
-    dry_run: bool,
-    args: Vec<Vec<String>>,
-    threads: Option<usize>,
-) -> Result<()> {
-    println!("{} files", args.len());
+pub fn try_run_ffmpeg_par(dry_run: bool, cmds: Vec<Command>, threads: Option<usize>) -> Result<()> {
+    println!("{} files", cmds.len());
     if dry_run {
         println!("dry run... doing nothing.");
-        for inner in args {
-            let args = inner.join(" ");
-            println!("ffmpeg {args}");
+        for cmd in cmds {
+            let args = cmd.get_args().collect::<Vec<_>>();
+            println!("ffmpeg {args:?}");
         }
         println!("------");
     } else {
@@ -91,14 +66,14 @@ pub fn try_run_ffmpeg_par(
             .with_context(|| anyhow!("failed to create ProgressStyle"))?
             .progress_chars("#>-");
 
-        let bar = ProgressBar::new(args.len() as u64);
+        let bar = ProgressBar::new(cmds.len() as u64);
         bar.set_style(style);
         bar.enable_steady_tick(Duration::from_millis(100));
 
-        let results = args
+        let results = cmds
             .into_par_iter()
             .progress_with(bar.clone())
-            .map(ffmpeg)
+            .map(run_ffmpeg)
             .collect::<Vec<Result<()>>>();
 
         let error_count = results
@@ -110,6 +85,20 @@ pub fn try_run_ffmpeg_par(
         bar.finish_and_clear();
         println!("ffmpeg failed to encode {error_count} files");
         println!("Done in {}", HumanDuration(started.elapsed()));
+    }
+
+    Ok(())
+}
+
+fn run_ffmpeg(mut cmd: Command) -> Result<()> {
+    let cmd = cmd.stderr(Stdio::piped()).stdout(Stdio::piped()).spawn()?;
+
+    let result = cmd.wait_with_output()?;
+    if !result.status.success() {
+        let error_msg = String::from_utf8(result.stderr)?;
+        return Err(anyhow!(
+            "failed to execute FFmpeg!\nFFmpeg Error: {error_msg:?}"
+        ));
     }
 
     Ok(())
