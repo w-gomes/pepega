@@ -4,8 +4,8 @@ use std::process::Command;
 use anyhow::{Result, bail};
 
 use crate::args::{Config, EncodeOpts, VideoFormat};
-use crate::commands::{FFMPEG, audio_flags, flip_flags, loglevel_flags, push_args, video_flags};
-use crate::ffmpeg::{try_run_ffmpeg, try_run_ffmpeg_par};
+use crate::commands::{FFMPEG, audio_flags, flip_flags, global_flags, push_args, video_flags};
+use crate::ffmpeg::try_run_ffmpeg;
 use crate::utils::{get_inputs_and_outputs, get_output};
 
 const ENCODE: &str = "ENCODE";
@@ -17,7 +17,6 @@ pub fn encode(config: Config, encode_opts: EncodeOpts, flip: bool) -> Result<()>
         input,
         output,
         dry_run,
-        verbose,
         threads,
     } = config;
 
@@ -28,13 +27,13 @@ pub fn encode(config: Config, encode_opts: EncodeOpts, flip: bool) -> Result<()>
     }
 
     if input.is_file() {
-        let args = single_file(&input, output, encode_opts, flip, verbose)?;
+        let args = single_file(&input, output, encode_opts, flip)?;
         println!("Encoding a single file");
-        try_run_ffmpeg(dry_run, args)?;
+        try_run_ffmpeg(dry_run, &mut [args], None)?;
     } else if input.is_dir() {
-        let args = multiple_file(&input, encode_opts, ENCODE, flip, verbose)?;
+        let mut args = multiple_file(&input, encode_opts, ENCODE, flip)?;
         println!("Encoding multiple files");
-        try_run_ffmpeg_par(dry_run, args, threads)?;
+        try_run_ffmpeg(dry_run, &mut args, threads)?;
     }
 
     Ok(())
@@ -45,7 +44,6 @@ pub fn encode_youtube(config: Config, flip: bool) -> Result<()> {
         input,
         output,
         dry_run,
-        verbose,
         threads,
     } = config;
 
@@ -65,7 +63,7 @@ pub fn encode_youtube(config: Config, flip: bool) -> Result<()> {
 
         let mut cmd = Command::new(FFMPEG);
 
-        loglevel_flags(&mut cmd, verbose);
+        global_flags(&mut cmd);
 
         if flip {
             flip_flags(&mut cmd);
@@ -80,7 +78,7 @@ pub fn encode_youtube(config: Config, flip: bool) -> Result<()> {
         cmd.arg(output);
 
         println!("Encoding a single file for youtube");
-        try_run_ffmpeg(dry_run, cmd)?;
+        try_run_ffmpeg(dry_run, &mut [cmd], None)?;
     } else if input.is_dir() {
         let inputs_outputs_pair = get_inputs_and_outputs(&input, ENCODE_YOUTUBE)?;
 
@@ -88,7 +86,7 @@ pub fn encode_youtube(config: Config, flip: bool) -> Result<()> {
         for (input, output) in inputs_outputs_pair {
             let mut cmd = Command::new(FFMPEG);
 
-            loglevel_flags(&mut cmd, verbose);
+            global_flags(&mut cmd);
 
             if flip {
                 flip_flags(&mut cmd);
@@ -106,7 +104,7 @@ pub fn encode_youtube(config: Config, flip: bool) -> Result<()> {
         }
 
         println!("Encoding multiple files for youtube");
-        try_run_ffmpeg_par(dry_run, args, threads)?;
+        try_run_ffmpeg(dry_run, &mut args, threads)?;
     }
 
     Ok(())
@@ -117,7 +115,6 @@ pub fn encode_upscale(config: Config, flip: bool) -> Result<()> {
         input,
         output,
         dry_run,
-        verbose,
         threads,
     } = config;
 
@@ -147,7 +144,7 @@ pub fn encode_upscale(config: Config, flip: bool) -> Result<()> {
 
         let mut cmd = Command::new(FFMPEG);
 
-        loglevel_flags(&mut cmd, verbose);
+        global_flags(&mut cmd);
 
         if flip {
             flip_flags(&mut cmd);
@@ -162,7 +159,7 @@ pub fn encode_upscale(config: Config, flip: bool) -> Result<()> {
         cmd.arg(output);
 
         println!("Encoding a single file upscaled");
-        try_run_ffmpeg(dry_run, cmd)?;
+        try_run_ffmpeg(dry_run, &mut [cmd], None)?;
     } else if input.is_dir() {
         let inputs_outputs_pair = get_inputs_and_outputs(&input, ENCODE_UPSCALE)?;
 
@@ -170,7 +167,7 @@ pub fn encode_upscale(config: Config, flip: bool) -> Result<()> {
         for (input, output) in inputs_outputs_pair {
             let mut cmd = Command::new(FFMPEG);
 
-            loglevel_flags(&mut cmd, verbose);
+            global_flags(&mut cmd);
 
             if flip {
                 flip_flags(&mut cmd);
@@ -188,7 +185,7 @@ pub fn encode_upscale(config: Config, flip: bool) -> Result<()> {
         }
 
         println!("Encoding multiple files upscaled");
-        try_run_ffmpeg_par(dry_run, args, threads)?;
+        try_run_ffmpeg(dry_run, &mut args, threads)?;
     }
 
     Ok(())
@@ -199,7 +196,6 @@ fn single_file(
     output: Option<PathBuf>,
     encode_opts: EncodeOpts,
     flip: bool,
-    verbose: bool,
 ) -> Result<Command> {
     let EncodeOpts {
         video_codec,
@@ -210,7 +206,7 @@ fn single_file(
 
     let mut cmd = Command::new(FFMPEG);
 
-    loglevel_flags(&mut cmd, verbose);
+    global_flags(&mut cmd);
 
     if flip {
         flip_flags(&mut cmd);
@@ -233,7 +229,6 @@ fn multiple_file(
     encode_opts: EncodeOpts,
     command_str: &str,
     flip: bool,
-    verbose: bool,
 ) -> Result<Vec<Command>> {
     let EncodeOpts {
         video_codec,
@@ -249,7 +244,7 @@ fn multiple_file(
     for (input, output) in inputs_ouputs_pair {
         let mut cmd = Command::new(FFMPEG);
 
-        loglevel_flags(&mut cmd, verbose);
+        global_flags(&mut cmd);
 
         if flip {
             flip_flags(&mut cmd);

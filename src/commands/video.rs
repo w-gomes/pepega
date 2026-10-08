@@ -3,7 +3,7 @@ use std::process::Command;
 use anyhow::{Result, bail, ensure};
 
 use crate::args::{Config, VideoFormat};
-use crate::commands::{FFMPEG, loglevel_flags, push_args};
+use crate::commands::{FFMPEG, global_flags, push_args};
 use crate::ffmpeg::try_run_ffmpeg;
 use crate::utils::{get_output, temp_list_for_video};
 
@@ -14,7 +14,6 @@ pub fn video(config: Config, framerate: u64) -> Result<()> {
         input,
         output,
         dry_run,
-        verbose,
         ..
     } = config;
 
@@ -35,7 +34,7 @@ pub fn video(config: Config, framerate: u64) -> Result<()> {
     let (temp_file, total_images) = temp_list_for_video(&input, framerate)?;
     let input = temp_file.path();
 
-    loglevel_flags(&mut cmd, verbose);
+    global_flags(&mut cmd);
     push_args![cmd => [
         "-f", "concat",
         "-safe", 0.to_string(),
@@ -48,7 +47,7 @@ pub fn video(config: Config, framerate: u64) -> Result<()> {
     ]];
 
     println!("Creating a video from {total_images} images.");
-    try_run_ffmpeg(dry_run, cmd)?;
+    try_run_ffmpeg(dry_run, &mut [cmd], None)?;
 
     Ok(())
 }

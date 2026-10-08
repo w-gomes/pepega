@@ -3,7 +3,7 @@ use std::process::Command;
 use anyhow::{Result, bail, ensure};
 
 use crate::args::{Config, EncodeOpts, VideoFormat};
-use crate::commands::{FFMPEG, audio_flags, loglevel_flags, push_args, video_flags};
+use crate::commands::{FFMPEG, audio_flags, global_flags, push_args, video_flags};
 use crate::ffmpeg::try_run_ffmpeg;
 use crate::utils::get_output;
 
@@ -16,7 +16,6 @@ pub fn clip(config: Config, start: &str, end: &str, encode_opts: Option<EncodeOp
         input,
         output,
         dry_run,
-        verbose,
         ..
     } = config;
 
@@ -37,7 +36,7 @@ pub fn clip(config: Config, start: &str, end: &str, encode_opts: Option<EncodeOp
     let output = get_output(&input, output, cmd_str)?;
 
     let mut cmd = Command::new(FFMPEG);
-    loglevel_flags(&mut cmd, verbose);
+    global_flags(&mut cmd);
 
     if let Some(encode_opts) = encode_opts {
         let EncodeOpts {
@@ -73,7 +72,7 @@ pub fn clip(config: Config, start: &str, end: &str, encode_opts: Option<EncodeOp
     }
 
     println!("Clipping a video");
-    try_run_ffmpeg(dry_run, cmd)?;
+    try_run_ffmpeg(dry_run, &mut [cmd], None)?;
 
     Ok(())
 }
@@ -83,7 +82,6 @@ pub fn clip_gif(config: Config, start: &str, end: &str) -> Result<()> {
         input,
         output,
         dry_run,
-        verbose,
         ..
     } = config;
 
@@ -94,7 +92,7 @@ pub fn clip_gif(config: Config, start: &str, end: &str) -> Result<()> {
     let output = get_output(&input, output, CLIP_GIF)?;
     let output = output.with_extension("gif");
 
-    loglevel_flags(&mut cmd, verbose);
+    global_flags(&mut cmd);
 
     push_args![cmd => [
         "-i", input,
@@ -107,7 +105,7 @@ pub fn clip_gif(config: Config, start: &str, end: &str) -> Result<()> {
     ]];
 
     println!("Clipping a video and saving as gif");
-    try_run_ffmpeg(dry_run, cmd)?;
+    try_run_ffmpeg(dry_run, &mut [cmd], None)?;
 
     Ok(())
 }
