@@ -134,6 +134,12 @@ pub fn get_inputs_and_outputs(dir: &Path, command_str: &str) -> Result<Vec<(Path
         input_output_pair.push((input.to_path_buf(), output));
     }
 
+    ensure!(
+        !input_output_pair.is_empty(),
+        "directory `{}` is empty.",
+        dir.display(),
+    );
+
     Ok(input_output_pair)
 }
 
