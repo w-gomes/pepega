@@ -34,7 +34,6 @@ pub struct Config {
     pub input: PathBuf,
     pub output: Option<PathBuf>,
     pub dry_run: bool,
-    pub verbose: bool,
     pub threads: Option<usize>,
 }
 
@@ -55,10 +54,6 @@ pub struct Opts {
     /// Set the number of threads for rayon's thread pool.
     #[arg(short = 'j', long, alias = "jobs", global = true)]
     pub threads: Option<usize>,
-
-    /// Set ffmpeg log level to verbose.
-    #[arg(short, long, default_value_t = false, global = true)]
-    pub verbose: bool,
 
     /// Don't do anything, only print the arguments.
     #[arg(short, long, alias = "test", default_value_t = false, global = true)]

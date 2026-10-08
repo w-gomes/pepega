@@ -3,7 +3,7 @@ use std::process::Command;
 use anyhow::{Result, bail, ensure};
 
 use crate::args::{Config, EncodeOpts};
-use crate::commands::{FFMPEG, audio_flags, loglevel_flags, push_args, video_flags};
+use crate::commands::{FFMPEG, audio_flags, global_flags, push_args, video_flags};
 use crate::ffmpeg::try_run_ffmpeg;
 use crate::utils::{generate_inputs_and_filters, get_output};
 
@@ -14,7 +14,6 @@ pub fn merge(config: Config, encode_opts: EncodeOpts) -> Result<()> {
         input,
         output,
         dry_run,
-        verbose,
         ..
     } = config;
 
@@ -40,7 +39,7 @@ pub fn merge(config: Config, encode_opts: EncodeOpts) -> Result<()> {
 
     let (inputs, filters) = generate_inputs_and_filters(&input)?;
 
-    loglevel_flags(&mut cmd, verbose);
+    global_flags(&mut cmd);
 
     cmd.args(inputs);
 
@@ -55,7 +54,7 @@ pub fn merge(config: Config, encode_opts: EncodeOpts) -> Result<()> {
     cmd.arg(output);
 
     println!("Merging multiple videos");
-    try_run_ffmpeg(dry_run, cmd)?;
+    try_run_ffmpeg(dry_run, &mut [cmd], None)?;
 
     Ok(())
 }

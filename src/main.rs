@@ -18,7 +18,6 @@ fn run() -> Result<()> {
         input: opts.input,
         output: opts.output,
         dry_run: opts.dry_run,
-        verbose: opts.verbose,
         threads: opts.threads,
     };
 

@@ -3,7 +3,7 @@ use std::process::Command;
 use anyhow::{Result, bail, ensure};
 
 use crate::args::{AudioCodec, Config};
-use crate::commands::{FFMPEG, audio_flags, loglevel_flags, push_args};
+use crate::commands::{FFMPEG, audio_flags, global_flags, push_args};
 use crate::ffmpeg::try_run_ffmpeg;
 use crate::utils::get_output;
 
@@ -14,7 +14,6 @@ pub fn audio(config: Config, audio_codec: AudioCodec) -> Result<()> {
         input,
         output,
         dry_run,
-        verbose,
         ..
     } = config;
 
@@ -30,7 +29,7 @@ pub fn audio(config: Config, audio_codec: AudioCodec) -> Result<()> {
 
     let mut cmd = Command::new(FFMPEG);
 
-    loglevel_flags(&mut cmd, verbose);
+    global_flags(&mut cmd);
 
     push_args![cmd => ["-i", input, "-vn"]];
 
@@ -55,7 +54,7 @@ pub fn audio(config: Config, audio_codec: AudioCodec) -> Result<()> {
     }
 
     println!("Extracting audio...");
-    try_run_ffmpeg(dry_run, cmd)?;
+    try_run_ffmpeg(dry_run, &mut [cmd], None)?;
 
     Ok(())
 }
