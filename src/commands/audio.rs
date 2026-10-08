@@ -36,6 +36,9 @@ pub fn audio(config: Config, audio_codec: AudioCodec) -> Result<()> {
     // The output is added together with audio_codec, because the file format
     // depends on it.
     match audio_codec {
+        AudioCodec::Copy => {
+            bail!("Remuxing while extracting audio not supported.");
+        }
         enc @ AudioCodec::Aac => {
             audio_flags(&mut cmd, enc);
             let output = output.with_extension("aac");

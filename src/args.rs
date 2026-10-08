@@ -19,6 +19,8 @@ Whereas for AV1 and HEVC, the flag cq and qp is used respectively.
 Reasonable values for crf: [17..28]
 Reasonable values for qp using hevc: [22..34]
 Reasonable values for cq using av1: [26..36]
+
+If remuxing, this flag is no-op.
 ";
 
 const STYLES: Styles = Styles::styled()
@@ -145,7 +147,7 @@ pub struct EncodeOpts {
     pub video_codec: VideoCodec,
 
     /// The audio codec.
-    #[arg(short = 'A', value_enum, default_value_t = AudioCodec::Opus)]
+    #[arg(short = 'A', value_enum, default_value_t = AudioCodec::Copy)]
     pub audio_codec: AudioCodec,
 
     /// The video format.
@@ -160,6 +162,9 @@ pub struct EncodeOpts {
 
 #[derive(Clone, Debug, Default, strum::Display, ValueEnum)]
 pub enum VideoCodec {
+    /// Remux.
+    #[strum(to_string = "copy")]
+    Copy,
     /// `libx264` codec.
     #[strum(to_string = "libx264")]
     #[value(aliases = ["H264", "264"])]
@@ -181,6 +186,9 @@ pub enum VideoCodec {
 
 #[derive(Clone, Debug, Default, strum::Display, ValueEnum)]
 pub enum AudioCodec {
+    /// Remux.
+    #[strum(to_string = "copy")]
+    Copy,
     /// `aac` Advanced Audio Coding codec.
     #[strum(to_string = "aac")]
     Aac,

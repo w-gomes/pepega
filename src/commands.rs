@@ -27,6 +27,9 @@ pub fn global_flags(cmd: &mut Command) {
 
 pub fn audio_flags(cmd: &mut Command, audio_codec: AudioCodec) {
     match audio_codec {
+        enc @ AudioCodec::Copy => {
+            push_args![cmd => ["-c:a", enc.to_string()]];
+        }
         enc @ AudioCodec::Aac => {
             push_args![cmd => ["-c:a", enc.to_string(), "-b:a", "256k"]];
         }
@@ -44,9 +47,13 @@ pub fn video_flags(cmd: &mut Command, video_codec: VideoCodec, quality: Option<u
         VideoCodec::H264 | VideoCodec::H265 => DEFAULT_CRF,
         VideoCodec::Av1 => DEFAULT_CQ_AV1,
         VideoCodec::Hevc => DEFAULT_QP_HEVC,
+        VideoCodec::Copy => 0,
     });
 
     match video_codec {
+        codec @ VideoCodec::Copy => {
+            push_args![cmd => ["-c:v", codec.to_string()]];
+        }
         codec @ (VideoCodec::H264 | VideoCodec::H265) => {
             push_args![cmd => [
                 "-c:v", codec.to_string(),
