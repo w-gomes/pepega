@@ -98,9 +98,19 @@ pub fn clip_gif(config: Config, start: &str, end: &str) -> Result<()> {
         "-i", input,
         "-ss", start,
         "-to", end,
-        "-vf",
-        "fps=30,scale=1080:-1:flags=lanczos,split[s0][s1];[s0]palettegen[p];[s1][p]paletteuse",
-        "-loop", 0.to_string(),
+        "-vf"
+    ]];
+
+    // FIXME: Can't use push_args! macro for this.
+    // Even if it's wrapped in quotes, the ffmpeg is returning an error.
+    // Check what std::process::Command is doing.
+    let filter = "fps=30,scale=1080:-1:flags=lanczos,split[s0][s1];\
+                  [s0]palettegen[p];\
+                  [s1][p]paletteuse=dither=bayer:bayer_scale=5:diff_mode=rectangle";
+    cmd.arg(filter);
+
+    push_args![cmd => [
+        "-loop", "0",
         output,
     ]];
 
