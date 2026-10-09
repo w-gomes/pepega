@@ -3,7 +3,7 @@ use std::process::Command;
 use anyhow::{Result, bail, ensure};
 
 use crate::args::{Config, EncodeOpts};
-use crate::commands::{FFMPEG, audio_flags, global_flags, push_args, video_flags};
+use crate::commands::{AudioCodec, FFMPEG, audio_flags, global_flags, push_args, video_flags};
 use crate::ffmpeg::try_run_ffmpeg;
 use crate::utils::{generate_inputs_and_filters, get_output};
 
@@ -48,6 +48,10 @@ pub fn merge(config: Config, encode_opts: EncodeOpts) -> Result<()> {
         "-map", "[v]",
         "-map", "[a]",
     ]];
+
+    if matches!(audio_codec, AudioCodec::Copy) {
+        bail!("Filtering and streamcopy cannot be used together. Pick an audio codec with -A");
+    }
 
     video_flags(&mut cmd, video_codec, quality);
     audio_flags(&mut cmd, audio_codec);

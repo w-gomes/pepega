@@ -22,7 +22,7 @@ pub const DEFAULT_CQ_AV1: u64 = 28;
 pub const DEFAULT_QP_HEVC: u64 = 24;
 
 pub fn global_flags(cmd: &mut Command) {
-    push_args![cmd => ["-n", "-hide_banner", "-loglevel", "error", "-progress", "pipe:1"]];
+    push_args![cmd => ["-y", "-hide_banner", "-loglevel", "error", "-progress", "pipe:1"]];
 }
 
 pub fn audio_flags(cmd: &mut Command, audio_codec: AudioCodec) {
