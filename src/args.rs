@@ -158,6 +158,10 @@ pub struct EncodeOpts {
           short = 'Q',
           value_parser = clap::value_parser!(u64).range(0..=63))]
     pub quality: Option<u64>,
+
+    /// Copy the input's substitle stream, if present.
+    #[arg(short, long)]
+    pub subtitle: bool,
 }
 
 #[derive(Clone, Debug, Default, strum::Display, ValueEnum)]
