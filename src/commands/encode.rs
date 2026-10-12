@@ -202,6 +202,7 @@ fn single_file(
         audio_codec,
         video_format,
         quality,
+        subtitle,
     } = encode_opts;
 
     let mut cmd = Command::new(FFMPEG);
@@ -216,6 +217,10 @@ fn single_file(
 
     video_flags(&mut cmd, video_codec, quality);
     audio_flags(&mut cmd, audio_codec);
+
+    if subtitle {
+        push_args![cmd => ["-c:s", "copy"]];
+    }
 
     let output = get_output(input, output, ENCODE)?;
     let output = output.with_extension(video_format.to_string());
@@ -235,6 +240,7 @@ fn multiple_file(
         audio_codec,
         video_format,
         quality,
+        subtitle,
     } = encode_opts;
 
     let mut args = Vec::new();
@@ -254,6 +260,10 @@ fn multiple_file(
 
         video_flags(&mut cmd, video_codec.clone(), quality);
         audio_flags(&mut cmd, audio_codec.clone());
+
+        if subtitle {
+            push_args![cmd => ["-c:s", "copy"]];
+        }
 
         let output = output.with_extension(video_format.to_string());
         cmd.arg(output);

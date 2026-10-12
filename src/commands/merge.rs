@@ -22,6 +22,7 @@ pub fn merge(config: Config, encode_opts: EncodeOpts) -> Result<()> {
         audio_codec,
         video_format,
         quality,
+        ..
     } = encode_opts;
 
     if let Ok(exists) = input.try_exists()

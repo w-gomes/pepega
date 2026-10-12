@@ -44,6 +44,7 @@ pub fn clip(config: Config, start: &str, end: &str, encode_opts: Option<EncodeOp
             audio_codec,
             video_format,
             quality,
+            subtitle,
         } = encode_opts;
 
         push_args![cmd => [
@@ -55,6 +56,10 @@ pub fn clip(config: Config, start: &str, end: &str, encode_opts: Option<EncodeOp
 
         video_flags(&mut cmd, video_codec, quality);
         audio_flags(&mut cmd, audio_codec);
+
+        if subtitle {
+            push_args![cmd => ["-c:s", "copy"]];
+        }
 
         let output = output.with_extension(video_format.to_string());
         cmd.arg(output);
