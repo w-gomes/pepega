@@ -151,7 +151,7 @@ pub struct EncodeOpts {
     pub audio_codec: AudioCodec,
 
     /// The video format.
-    #[arg(short = 'F', value_enum, default_value_t)]
+    #[arg(short = 'F', value_enum)]
     pub video_format: VideoFormat,
 
     #[arg(help(QUALITY_HELP_TEXT),

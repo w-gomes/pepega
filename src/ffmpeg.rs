@@ -98,8 +98,6 @@ fn run_ffmpeg(cmd: &mut Command, multi: &MultiProgress) -> Result<()> {
 
     let status = child.wait()?;
 
-    spinner.finish();
-
     if !status.success() {
         multi.println(format!("{prefix} failed ({status})"))?;
         return Err(anyhow!("failed to execute FFmpeg!\n"));
@@ -145,6 +143,7 @@ fn ffmpeg_stdout(spinner: &ProgressBar, stdout: impl Read) -> Result<()> {
             _ => {}
         }
     }
+    spinner.finish_and_clear();
 
     Ok(())
 }
