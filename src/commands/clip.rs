@@ -99,22 +99,17 @@ pub fn clip_gif(config: Config, start: &str, end: &str) -> Result<()> {
 
     global_flags(&mut cmd);
 
+    // Can't use this literal directly inside push_args! because of the way windows
+    // handles quotes or whatever. I am not sure.
+    let filter = "fps=30,scale=1080:-1:flags=lanczos,split[s0][s1];\
+                  [s0]palettegen[p];\
+                  [s1][p]paletteuse=dither=bayer:bayer_scale=5:diff_mode=rectangle";
+
     push_args![cmd => [
         "-i", input,
         "-ss", start,
         "-to", end,
-        "-vf"
-    ]];
-
-    // FIXME: Can't use push_args! macro for this.
-    // Even if it's wrapped in quotes, the ffmpeg is returning an error.
-    // Check what std::process::Command is doing.
-    let filter = "fps=30,scale=1080:-1:flags=lanczos,split[s0][s1];\
-                  [s0]palettegen[p];\
-                  [s1][p]paletteuse=dither=bayer:bayer_scale=5:diff_mode=rectangle";
-    cmd.arg(filter);
-
-    push_args![cmd => [
+        "-vf", filter,
         "-loop", "0",
         output,
     ]];
