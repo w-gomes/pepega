@@ -23,6 +23,14 @@ Reasonable values for cq using av1: [26..36]
 If remuxing, this flag is no-op.
 ";
 
+const SUBTITLE_HELP_TEXT: &str = "Select the subtitle stream to pick through its index.
+
+If unsure which indexes to keep, use a tool like `ffprobe` to read the metadata.
+
+If using this option, the `MKV` container is recommended for output, \
+because it supports nearly any subtitle codec.
+";
+
 const STYLES: Styles = Styles::styled()
     .header(AnsiColor::Blue.on_default().effects(Effects::BOLD))
     .usage(AnsiColor::Blue.on_default().effects(Effects::BOLD))
@@ -162,14 +170,7 @@ pub struct EncodeOpts {
           value_parser = clap::value_parser!(u64).range(0..=63))]
     pub quality: Option<u64>,
 
-    /// Select the subtitle stream to pick through its index.
-    ///
-    /// If unsure which indexes to keep, use a tool like `ffprobe` to read
-    /// the metadata.
-    ///
-    /// If using this option, the `MKV` container is recommended for output,
-    /// because it supports nearly any subtitle codec.
-    #[arg(short = 'S', value_name = "[INDEX]")]
+    #[arg(help(SUBTITLE_HELP_TEXT), short = 'S', value_name = "[INDEX]")]
     pub subtitle: Option<Vec<u64>>,
 }
 
