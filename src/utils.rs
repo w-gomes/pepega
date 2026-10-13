@@ -27,8 +27,11 @@ pub fn generate_inputs_and_filters(dir: &Path) -> Result<(Vec<String>, String)> 
                 .is_some_and(|ext| ext == "mkv" || ext == "mp4")
         })
     {
-        let input = entry.path();
-        inputs.extend(vec!["-i".to_string(), input.display().to_string()]);
+        let input = entry
+            .path()
+            .to_str()
+            .ok_or_else(|| anyhow!("failed to convert to str"))?;
+        inputs.extend(vec!["-i".to_string(), input.to_string()]);
         filters.push_str(format!("[{idx}:v:0][{idx}:a:0]").as_str());
         idx += 1;
     }
@@ -73,7 +76,10 @@ pub fn temp_list_for_video(dir: &Path, framerate: u64) -> Result<(NamedTempFile,
         let entry = entry.path();
         let entry = fs::canonicalize(entry)
             .with_context(|| format!("failed to get the absolute path of {}", entry.display()))?;
-        writeln!(temp_file, "file '{}'", entry.display())?;
+        let input = entry
+            .to_str()
+            .ok_or_else(|| anyhow!("failed to convert to str"))?;
+        writeln!(temp_file, "file '{input}'")?;
         writeln!(temp_file, "duration {framerate}")?;
         total_images += 1;
     }
