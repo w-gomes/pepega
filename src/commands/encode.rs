@@ -4,7 +4,10 @@ use std::process::Command;
 use anyhow::{Result, bail};
 
 use crate::args::{Config, EncodeOpts, VideoFormat};
-use crate::commands::{FFMPEG, audio_flags, flip_flags, global_flags, push_args, video_flags};
+use crate::commands::{
+    FFMPEG, audio_flags, flip_flags, global_flags, map_flags, push_args, subtitles_flags,
+    video_flags,
+};
 use crate::ffmpeg::try_run_ffmpeg;
 use crate::utils::{get_inputs_and_outputs, get_output};
 
@@ -215,11 +218,15 @@ fn single_file(
 
     push_args![cmd => ["-i", input]];
 
+    if let Some(ref indexes) = subtitle {
+        map_flags(&mut cmd, indexes);
+    }
+
     video_flags(&mut cmd, video_codec, quality);
     audio_flags(&mut cmd, audio_codec);
 
-    if subtitle {
-        push_args![cmd => ["-c:s", "copy"]];
+    if subtitle.is_some() {
+        subtitles_flags(&mut cmd, &video_format);
     }
 
     let output = get_output(input, output, ENCODE)?;
@@ -258,11 +265,15 @@ fn multiple_file(
 
         push_args![cmd => ["-i", input]];
 
+        if let Some(ref indexes) = subtitle {
+            map_flags(&mut cmd, indexes);
+        }
+
         video_flags(&mut cmd, video_codec.clone(), quality);
         audio_flags(&mut cmd, audio_codec.clone());
 
-        if subtitle {
-            push_args![cmd => ["-c:s", "copy"]];
+        if subtitle.is_some() {
+            subtitles_flags(&mut cmd, &video_format);
         }
 
         let output = output.with_extension(video_format.to_string());

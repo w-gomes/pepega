@@ -151,7 +151,7 @@ pub struct EncodeOpts {
     pub audio_codec: AudioCodec,
 
     /// The video format.
-    #[arg(short = 'F', value_enum)]
+    #[arg(short = 'F', value_enum, default_value_t)]
     pub video_format: VideoFormat,
 
     #[arg(help(QUALITY_HELP_TEXT),
@@ -159,9 +159,15 @@ pub struct EncodeOpts {
           value_parser = clap::value_parser!(u64).range(0..=63))]
     pub quality: Option<u64>,
 
-    /// Copy the input's substitle stream, if present.
-    #[arg(short, long)]
-    pub subtitle: bool,
+    /// Subtitle's indexes to copy into output.
+    ///
+    /// If unsure which indexes to keep, use `ffprobe` tool to read
+    /// metadata.
+    ///
+    /// If using this option, the `MKV` container is recommended for output,
+    /// because it supports nearly any subtitle codec.
+    #[arg(short, long, value_name = "INDEX")]
+    pub subtitle: Option<Vec<u64>>,
 }
 
 #[derive(Clone, Debug, Default, strum::Display, ValueEnum)]
