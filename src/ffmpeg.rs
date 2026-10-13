@@ -58,15 +58,13 @@ pub fn try_run_ffmpeg(dry_run: bool, cmds: &mut [Command], threads: Option<usize
             .progress_with(parent_bar.clone())
             .collect::<Vec<Result<()>>>();
 
-        let error_count = results
-            .into_iter()
-            .filter_map(Result::err)
-            .inspect(|e| eprintln!("Error: {e}"))
-            .count();
+        // FIXME: the errors collected into results are not printed anymore.
+        // Rethink how to handle this.
+        let error_count = results.into_iter().filter_map(Result::err).count();
 
-        parent_bar.finish();
         multi.println(format!("All done in {}", HumanDuration(started.elapsed())))?;
         multi.println(format!("FFmpeg failed to encode {error_count} files"))?;
+        parent_bar.finish_and_clear();
     }
 
     Ok(())
@@ -88,11 +86,16 @@ fn run_ffmpeg(cmd: &mut Command, multi: &MultiProgress) -> Result<()> {
 
     let started = Instant::now();
 
-    let mut child = cmd.stdout(Stdio::piped()).stderr(Stdio::null()).spawn()?;
+    let mut child = cmd.stdout(Stdio::piped()).stderr(Stdio::piped()).spawn()?;
     let stdout = child
         .stdout
         .take()
         .ok_or_else(|| anyhow!("failed to get stdout"))?;
+    let stderr = child
+        .stderr
+        .take()
+        .ok_or_else(|| anyhow!("failed to get stderr"))?;
+    let stderr_reader = BufReader::new(stderr);
 
     ffmpeg_stdout(&spinner, stdout)?;
 
@@ -100,6 +103,12 @@ fn run_ffmpeg(cmd: &mut Command, multi: &MultiProgress) -> Result<()> {
 
     if !status.success() {
         multi.println(format!("{prefix} failed ({status})"))?;
+        for line in stderr_reader.lines() {
+            let line = line?;
+            multi.println(line)?;
+        }
+        multi.println("----------------------------------\n")?;
+        // FIXME: this error is not useful anymore.
         return Err(anyhow!("failed to execute FFmpeg!\n"));
     }
 
@@ -136,10 +145,8 @@ fn ffmpeg_stdout(spinner: &ProgressBar, stdout: impl Read) -> Result<()> {
                     "frame={frame_buf} fps={fps_buf} total_size={total_size_buf} bitrate={bitrate_buf} time={time_buf}"
                 );
                 spinner.set_message(message);
-                if value == "end" {
-                    break;
-                }
             }
+            // ignore unused stats.
             _ => {}
         }
     }
