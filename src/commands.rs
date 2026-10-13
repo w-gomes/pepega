@@ -13,7 +13,7 @@ pub use encode::{encode, encode_upscale, encode_youtube};
 pub use merge::merge;
 pub use video::video;
 
-use crate::args::{AudioCodec, VideoCodec, VideoFormat};
+use crate::args::{AudioCodec, CropCommand, OffSet, VideoCodec, VideoFormat};
 
 pub const FFMPEG: &str = "ffmpeg";
 
@@ -100,6 +100,28 @@ pub fn subtitles_flags(cmd: &mut Command, video_format: &VideoFormat) {
         VideoFormat::Mp4 => "mov_text",
     };
     push_args![cmd => ["-c:s", flags_for_mp4_or_mkv]];
+}
+
+pub fn crop_flags(cmd: &mut Command, crop_opts: &CropCommand) {
+    let CropCommand::Crop {
+        width,
+        height,
+        offset,
+    } = crop_opts;
+
+    if let Some(offset) = offset {
+        let OffSet { x, y } = offset;
+
+        let (Some(x), Some(y)) = (x, y) else {
+            unreachable!()
+        };
+
+        let crop = format!("crop={width}:{height}:{x}:{y}");
+        push_args![cmd => ["-vf", crop]];
+    } else {
+        let crop = format!("crop={width}:{height}:(in_w-{width})/2:(in_h-{height})/2");
+        push_args![cmd => ["-vf", crop]];
+    }
 }
 
 // macro helper for cmd.arg(..);

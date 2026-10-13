@@ -101,6 +101,9 @@ pub enum Command {
         /// Flip (rotate) the output clockwise 90 degrees.
         #[arg(short, long)]
         flip: bool,
+
+        #[command(subcommand)]
+        crop: Option<CropCommand>,
     },
 
     /// Merge two or more videos.
@@ -159,15 +162,39 @@ pub struct EncodeOpts {
           value_parser = clap::value_parser!(u64).range(0..=63))]
     pub quality: Option<u64>,
 
-    /// Subtitle's indexes to copy into output.
+    /// Select the subtitle stream to pick through its index.
     ///
-    /// If unsure which indexes to keep, use `ffprobe` tool to read
-    /// metadata.
+    /// If unsure which indexes to keep, use a tool like `ffprobe` to read
+    /// the metadata.
     ///
     /// If using this option, the `MKV` container is recommended for output,
     /// because it supports nearly any subtitle codec.
-    #[arg(short, long, value_name = "INDEX")]
+    #[arg(short = 'S', value_name = "[INDEX]")]
     pub subtitle: Option<Vec<u64>>,
+}
+
+#[derive(Debug, Subcommand)]
+pub enum CropCommand {
+    Crop {
+        /// Width of the output.
+        width: u64,
+
+        /// Height of the output.
+        height: u64,
+
+        #[command(flatten)]
+        offset: Option<OffSet>,
+    },
+}
+
+#[derive(Args, Clone, Debug)]
+pub struct OffSet {
+    /// Horizontal offset from the left edge.
+    #[arg(requires = "y")]
+    pub x: Option<u64>,
+    /// Vertical offset from the top edge.
+    #[arg(requires = "x")]
+    pub y: Option<u64>,
 }
 
 #[derive(Clone, Debug, Default, strum::Display, ValueEnum)]

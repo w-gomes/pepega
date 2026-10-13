@@ -3,10 +3,10 @@ use std::process::Command;
 
 use anyhow::{Result, bail};
 
-use crate::args::{Config, EncodeOpts, VideoFormat};
+use crate::args::{Config, CropCommand, EncodeOpts, VideoFormat};
 use crate::commands::{
-    FFMPEG, audio_flags, flip_flags, global_flags, map_flags, push_args, subtitles_flags,
-    video_flags,
+    FFMPEG, audio_flags, crop_flags, flip_flags, global_flags, map_flags, push_args,
+    subtitles_flags, video_flags,
 };
 use crate::ffmpeg::try_run_ffmpeg;
 use crate::utils::{get_inputs_and_outputs, get_output};
@@ -15,7 +15,12 @@ const ENCODE: &str = "ENCODE";
 const ENCODE_YOUTUBE: &str = "ENCODE_YOUTUBE";
 const ENCODE_UPSCALE: &str = "ENCODE_UPSCALE";
 
-pub fn encode(config: Config, encode_opts: EncodeOpts, flip: bool) -> Result<()> {
+pub fn encode(
+    config: Config,
+    encode_opts: EncodeOpts,
+    flip: bool,
+    crop: Option<&CropCommand>,
+) -> Result<()> {
     let Config {
         input,
         output,
@@ -30,11 +35,11 @@ pub fn encode(config: Config, encode_opts: EncodeOpts, flip: bool) -> Result<()>
     }
 
     if input.is_file() {
-        let args = single_file(&input, output, encode_opts, flip)?;
+        let args = single_file(&input, output, encode_opts, flip, crop)?;
         println!("Encoding a single file");
         try_run_ffmpeg(dry_run, &mut [args], None)?;
     } else if input.is_dir() {
-        let mut args = multiple_file(&input, encode_opts, ENCODE, flip)?;
+        let mut args = multiple_file(&input, encode_opts, ENCODE, flip, crop)?;
         println!("Encoding multiple files");
         try_run_ffmpeg(dry_run, &mut args, threads)?;
     }
@@ -199,6 +204,7 @@ fn single_file(
     output: Option<PathBuf>,
     encode_opts: EncodeOpts,
     flip: bool,
+    crop_opts: Option<&CropCommand>,
 ) -> Result<Command> {
     let EncodeOpts {
         video_codec,
@@ -217,6 +223,10 @@ fn single_file(
     }
 
     push_args![cmd => ["-i", input]];
+
+    if let Some(crop_opts) = crop_opts {
+        crop_flags(&mut cmd, crop_opts);
+    }
 
     if let Some(ref indexes) = subtitle {
         map_flags(&mut cmd, indexes);
@@ -241,6 +251,7 @@ fn multiple_file(
     encode_opts: EncodeOpts,
     command_str: &str,
     flip: bool,
+    crop_opts: Option<&CropCommand>,
 ) -> Result<Vec<Command>> {
     let EncodeOpts {
         video_codec,
@@ -264,6 +275,10 @@ fn multiple_file(
         }
 
         push_args![cmd => ["-i", input]];
+
+        if let Some(crop_opts) = crop_opts {
+            crop_flags(&mut cmd, crop_opts);
+        }
 
         if let Some(ref indexes) = subtitle {
             map_flags(&mut cmd, indexes);

@@ -36,7 +36,11 @@ fn run() -> Result<()> {
             ClipCommand::Gif => clip_gif(config, &start, &end),
         },
 
-        Command::Encode { encode_opts, flip } => encode(config, encode_opts, flip),
+        Command::Encode {
+            encode_opts,
+            flip,
+            crop,
+        } => encode(config, encode_opts, flip, crop.as_ref()),
 
         Command::Merge { encode_opts } => merge(config, encode_opts),
 
