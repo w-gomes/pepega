@@ -79,7 +79,7 @@ fn run_ffmpeg(cmd: &mut Command, multi: &MultiProgress) -> Result<()> {
     let spinner_style = ProgressStyle::default_spinner()
         .template("{spinner:.green} {wide_msg}")
         .with_context(|| anyhow!("failed to create style in bar_style"))?
-        .tick_chars("⠁⠂⠄⡀⢀⠠⠐⠈");
+        .tick_chars("/|\\- ");
 
     let spinner = multi.add(ProgressBar::new_spinner().with_style(spinner_style));
     spinner.enable_steady_tick(Duration::from_millis(100));

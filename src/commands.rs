@@ -13,7 +13,7 @@ pub use encode::{encode, encode_upscale, encode_youtube};
 pub use merge::merge;
 pub use video::video;
 
-use crate::args::{AudioCodec, VideoCodec};
+use crate::args::{AudioCodec, VideoCodec, VideoFormat};
 
 pub const FFMPEG: &str = "ffmpeg";
 
@@ -84,6 +84,22 @@ pub fn video_flags(cmd: &mut Command, video_codec: VideoCodec, quality: Option<u
 
 pub fn flip_flags(cmd: &mut Command) {
     push_args![cmd => ["-display_rotation:v:0", "-90.0"]];
+}
+
+pub fn map_flags(cmd: &mut Command, indexes: &[u64]) {
+    push_args![cmd => ["-map", "0:v", "-map", "0:a"]];
+    for idx in indexes {
+        push_args![cmd => ["-map", format!("0:s:{idx}")]];
+    }
+    push_args![cmd => ["-map", "-0:t"]];
+}
+
+pub fn subtitles_flags(cmd: &mut Command, video_format: &VideoFormat) {
+    let flags_for_mp4_or_mkv = match video_format {
+        VideoFormat::Mkv => "copy",
+        VideoFormat::Mp4 => "mov_text",
+    };
+    push_args![cmd => ["-c:s", flags_for_mp4_or_mkv]];
 }
 
 // macro helper for cmd.arg(..);
