@@ -6,6 +6,7 @@ mod video;
 
 use std::process::Command;
 
+pub use crate::args::{DEFAULT_CQ_AV1, DEFAULT_CRF, DEFAULT_QP_HEVC};
 pub use crate::push_args;
 pub use audio::audio;
 pub use clip::{clip, clip_gif};
@@ -16,10 +17,6 @@ pub use video::video;
 use crate::args::{AudioCodec, CropCommand, OffSet, VideoCodec, VideoFormat};
 
 pub const FFMPEG: &str = "ffmpeg";
-
-pub const DEFAULT_CRF: u64 = 23;
-pub const DEFAULT_CQ_AV1: u64 = 28;
-pub const DEFAULT_QP_HEVC: u64 = 24;
 
 pub fn global_flags(cmd: &mut Command) {
     push_args![cmd => ["-y", "-hide_banner", "-loglevel", "error", "-progress", "pipe:1"]];
