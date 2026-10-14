@@ -14,7 +14,7 @@ pub fn try_run_ffmpeg(dry_run: bool, cmds: &mut [Command], threads: Option<usize
     println!("{} files", cmds.len());
     if dry_run {
         println!("------");
-        println!("dry run... doing nothing.");
+        println!("dry run... printing args.");
         for cmd in cmds {
             let args = cmd
                 .get_args()
@@ -42,7 +42,7 @@ pub fn try_run_ffmpeg(dry_run: bool, cmds: &mut [Command], threads: Option<usize
 
         let parent_style = ProgressStyle::default_bar()
             .template("[{elapsed_precise}] [{pos}/{len}] Waiting...")
-            .with_context(|| anyhow!("failed to create parent_style"))?;
+            .with_context(|| "failed to create parent_style".to_string())?;
 
         let multi = MultiProgress::new();
 
@@ -78,7 +78,7 @@ fn run_ffmpeg(cmd: &mut Command, multi: &MultiProgress) -> Result<()> {
 
     let spinner_style = ProgressStyle::default_spinner()
         .template("{spinner:.green} {wide_msg}")
-        .with_context(|| anyhow!("failed to create style in spinner_style"))?
+        .with_context(|| "failed to create style in spinner_style".to_string())?
         .tick_chars("/|\\- ");
 
     let spinner = multi.add(ProgressBar::new_spinner().with_style(spinner_style));

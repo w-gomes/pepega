@@ -32,18 +32,22 @@ pub fn generate_inputs_and_filters(dir: &Path) -> Result<(Vec<String>, String)> 
         filters.push_str(format!("[{idx}:v:0][{idx}:a:0]").as_str());
         idx += 1;
     }
-    // the real length is inputs.len() / 2 because of the pair: `-i <INPUT>`
-    let len = inputs.len() / 2;
 
-    debug_assert_eq!(idx, len);
+    // [-i, <INPUT>, -i, <INPUTS>, ...]
+    let num_of_inputs = inputs.len();
+
+    // number of [(-i, <INPUT>), ...]
+    let pair_len = num_of_inputs / 2;
+
+    debug_assert_eq!(idx, pair_len);
     filters.push_str(format!("concat=n={idx}:v=1:a=1[v][a]").as_str());
 
-    debug_assert_eq!(inputs.len() % 2, 0);
-    if (len) < 2 {
+    debug_assert_eq!(num_of_inputs % 2, 0);
+    if pair_len < 2 {
         return Err(anyhow!(
             "directory `{}` doesn't have enough videos. it contains {}",
             dir.display(),
-            len
+            pair_len
         ));
     }
 

@@ -6,15 +6,17 @@ mod video;
 
 use std::process::Command;
 
-pub use crate::args::{DEFAULT_CQ_AV1, DEFAULT_CRF, DEFAULT_QP_HEVC};
-pub use crate::push_args;
+use crate::args::{
+    AudioCodec, CropCommand, DEFAULT_CQ_AV1, DEFAULT_CRF, DEFAULT_QP_HEVC, OffSet, VideoCodec,
+    VideoFormat,
+};
+use crate::push_args;
+
 pub use audio::audio;
 pub use clip::{clip, clip_gif};
 pub use encode::{encode, encode_upscale, encode_youtube};
 pub use merge::merge;
 pub use video::video;
-
-use crate::args::{AudioCodec, CropCommand, OffSet, VideoCodec, VideoFormat};
 
 pub const FFMPEG: &str = "ffmpeg";
 
