@@ -6,13 +6,18 @@ use clap::builder::{
 };
 use clap::{Args, Parser, Subcommand, ValueEnum};
 
+pub const DEFAULT_CRF: u64 = 23;
+pub const DEFAULT_CQ_AV1: u64 = 28;
+pub const DEFAULT_QP_HEVC: u64 = 24;
+pub const MAX_QUALITY: u64 = 63;
+
 const DEFAULT_FRAMERATE: u64 = 5;
 
 const ABOUT: &str = "A command line wrapper for common `FFmpeg` tasks.";
 
 const QUALITY_HELP_TEXT: &str = "The quality flag.
 
-Set the quality with value in [0..=63]
+Set the quality with value in [0..={MAX_QUALITY}]
 For H264 and H265, the flag crf is used. \
 Whereas for AV1 and HEVC, the flag cq and qp is used respectively.
 
@@ -22,7 +27,7 @@ Reasonable values for cq using av1: [26..36]
 
 If remuxing, this flag is no-op.
 
-[default: crf 23, av1 28, hevc 24]
+[default: crf {DEFAULT_CRF}, av1 {DEFAULT_CQ_AV1}, hevc {DEFAULT_QP_HEVC}]
 ";
 
 const SUBTITLE_HELP_TEXT: &str = "Select the subtitle stream to pick through its index.
@@ -169,7 +174,7 @@ pub struct EncodeOpts {
 
     #[arg(help(QUALITY_HELP_TEXT),
           short = 'Q',
-          value_parser = clap::value_parser!(u64).range(0..=63))]
+          value_parser = clap::value_parser!(u64).range(0..=MAX_QUALITY))]
     pub quality: Option<u64>,
 
     #[arg(help(SUBTITLE_HELP_TEXT), short = 'S', value_name = "[INDEX]")]
