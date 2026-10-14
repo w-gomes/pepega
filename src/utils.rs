@@ -9,7 +9,7 @@ use chrono::Local;
 use tempfile::{Builder, NamedTempFile};
 use walkdir::{DirEntry, WalkDir};
 
-// Create a list of pair: -i, input and the filters for it
+// Create a list of (-i, input) and the output's filters
 pub fn generate_inputs_and_filters(dir: &Path) -> Result<(Vec<String>, String)> {
     let mut inputs = Vec::new();
     let mut filters = String::new();
@@ -30,7 +30,7 @@ pub fn generate_inputs_and_filters(dir: &Path) -> Result<(Vec<String>, String)> 
         let input = entry
             .path()
             .to_str()
-            .ok_or_else(|| anyhow!("failed to convert to str"))?;
+            .ok_or_else(|| anyhow!("failed to convert to &str"))?;
         inputs.extend(vec!["-i".to_string(), input.to_string()]);
         filters.push_str(format!("[{idx}:v:0][{idx}:a:0]").as_str());
         idx += 1;
@@ -78,7 +78,7 @@ pub fn temp_list_for_video(dir: &Path, framerate: u64) -> Result<(NamedTempFile,
             .with_context(|| format!("failed to get the absolute path of {}", entry.display()))?;
         let input = entry
             .to_str()
-            .ok_or_else(|| anyhow!("failed to convert to str"))?;
+            .ok_or_else(|| anyhow!("failed to convert to &str"))?;
         writeln!(temp_file, "file '{input}'")?;
         writeln!(temp_file, "duration {framerate}")?;
         total_images += 1;
@@ -98,19 +98,19 @@ pub fn temp_list_for_video(dir: &Path, framerate: u64) -> Result<(NamedTempFile,
 pub fn get_output(input: &Path, output: Option<PathBuf>, prefix: &str) -> Result<PathBuf> {
     output
         .map_or_else(|| generate_output(input, prefix), Ok)
-        .with_context(|| anyhow!("could not get the output file for `{}`", input.display()))
+        .with_context(|| format!("could not get the output file for `{}`", input.display()))
 }
 
 // Generate an output name
 fn generate_output(path: &Path, command_str: &str) -> Result<PathBuf> {
     let original_input = path.to_path_buf();
     let Some(file_name) = original_input.file_name() else {
-        return Err(anyhow!("Error extracting file name from Input"));
+        return Err(anyhow!("failed to get file_name of {}", path.display()));
     };
 
     // Convert OsStr to &str to pass to format!()
     let Some(file_name) = file_name.to_str() else {
-        return Err(anyhow!("Error converting OsStr to &str"));
+        return Err(anyhow!("failed to convert to &str"));
     };
 
     let now = Local::now();

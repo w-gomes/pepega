@@ -56,7 +56,7 @@ pub fn audio(config: Config, audio_codec: AudioCodec) -> Result<()> {
         }
     }
 
-    println!("Extracting audio...");
+    println!("Extracting audio");
     try_run_ffmpeg(dry_run, &mut [cmd], None)?;
 
     Ok(())

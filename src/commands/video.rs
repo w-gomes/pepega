@@ -37,11 +37,11 @@ pub fn video(config: Config, framerate: u64) -> Result<()> {
     global_flags(&mut cmd);
     push_args![cmd => [
         "-f", "concat",
-        "-safe", 0.to_string(),
+        "-safe", "0",
         "-i", input,
         "-tune", "stillimage",
         "-c:v", "libx264",
-        "-r", 30.to_string(),
+        "-r", "30",
         "-pix_fmt", "yuv420p",
         output,
     ]];
