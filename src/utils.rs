@@ -1,8 +1,5 @@
-use std::{
-    fs,
-    io::Write,
-    path::{Path, PathBuf},
-};
+use std::path::{Path, PathBuf};
+use std::{fs, io::Write};
 
 use anyhow::{Context, Result, anyhow, ensure};
 use chrono::Local;

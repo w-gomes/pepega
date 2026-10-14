@@ -1,6 +1,6 @@
 # Pepega
 
-A command line wrapper for `FFmpeg`.
+A command line wrapper for common `FFmpeg` tasks.
 
 I often encode, clip and extract audio streams from video as well as upload to youtube.
 This tool tries to simplify some of the flags, making it less verbose.
@@ -39,4 +39,7 @@ $ pepega -i input.mp4 youtube
 
 // extract the audio stream and encode
 $ pepega -i input.mp4 audio
+
+// for more options:
+$ pepega help <COMMAND>
 ```
