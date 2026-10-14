@@ -12,7 +12,7 @@ const ABOUT: &str = "A command line wrapper for common `FFmpeg` tasks.";
 
 const QUALITY_HELP_TEXT: &str = "The quality flag.
 
-Set the quality with value in [0..=51]
+Set the quality with value in [0..=63]
 For H264 and H265, the flag crf is used. \
 Whereas for AV1 and HEVC, the flag cq and qp is used respectively.
 
