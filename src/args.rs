@@ -21,6 +21,8 @@ Reasonable values for qp using hevc: [22..34]
 Reasonable values for cq using av1: [26..36]
 
 If remuxing, this flag is no-op.
+
+[default: crf 23, av1 28, hevc 24]
 ";
 
 const SUBTITLE_HELP_TEXT: &str = "Select the subtitle stream to pick through its index.
@@ -61,7 +63,7 @@ pub struct Opts {
     #[arg(short, long)]
     pub output: Option<PathBuf>,
 
-    /// Set the number of threads for rayon's thread pool.
+    /// Set the number of `FFmpeg` instance to run in parallel.
     #[arg(short = 'j', long, alias = "jobs", global = true)]
     pub threads: Option<usize>,
 
@@ -139,7 +141,7 @@ pub enum Command {
 
 #[derive(Debug, Subcommand)]
 pub enum ClipCommand {
-    /// Don't encode the output.
+    /// Copy the streams.
     Copy,
 
     /// Encode the output.
@@ -147,7 +149,7 @@ pub enum ClipCommand {
 
     /// Encode the ouput as `gif`.
     ///
-    /// Note: `gif` file is large, even for short clip.
+    /// Note: `gif` file can be large, even for short clip.
     Gif,
 }
 
@@ -176,6 +178,7 @@ pub struct EncodeOpts {
 
 #[derive(Debug, Subcommand)]
 pub enum CropCommand {
+    /// Crop the output
     Crop {
         /// Width of the output.
         width: u64,
