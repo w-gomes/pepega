@@ -30,14 +30,6 @@ If remuxing, this flag is no-op.
 [default: crf {DEFAULT_CRF}, av1 {DEFAULT_CQ_AV1}, hevc {DEFAULT_QP_HEVC}]
 ";
 
-const SUBTITLE_HELP_TEXT: &str = "Select the subtitle stream to pick through its index.
-
-If unsure which indexes to keep, use a tool like `ffprobe` to read the metadata.
-
-If using this option, the `MKV` container is recommended for output, \
-because it supports nearly any subtitle codec.
-";
-
 const STYLES: Styles = Styles::styled()
     .header(AnsiColor::Blue.on_default().effects(Effects::BOLD))
     .usage(AnsiColor::Blue.on_default().effects(Effects::BOLD))
@@ -177,8 +169,9 @@ pub struct EncodeOpts {
           value_parser = clap::value_parser!(u64).range(0..=MAX_QUALITY))]
     pub quality: Option<u64>,
 
-    #[arg(help(SUBTITLE_HELP_TEXT), short = 'S', value_name = "[INDEX]")]
-    pub subtitle: Option<Vec<u64>>,
+    /// Keep all audio and subtitle streams.
+    #[arg(short = 'K', long)]
+    pub keep_streams: bool,
 }
 
 #[derive(Debug, Subcommand)]
@@ -247,7 +240,7 @@ pub enum AudioCodec {
     Opus,
 }
 
-#[derive(Clone, Debug, Default, strum::Display, ValueEnum)]
+#[derive(Clone, Debug, Default, Eq, PartialEq, strum::Display, ValueEnum)]
 pub enum VideoFormat {
     /// `mp4` MP4 format.
     #[strum(to_string = "mp4")]

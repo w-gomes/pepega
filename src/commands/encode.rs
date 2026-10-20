@@ -5,8 +5,8 @@ use anyhow::{Result, bail};
 
 use crate::args::{Config, CropCommand, EncodeOpts, VideoFormat};
 use crate::commands::{
-    FFMPEG, audio_flags, crop_flags, flip_flags, global_flags, map_flags, push_args,
-    subtitles_flags, video_flags,
+    FFMPEG, audio_flags, crop_flags, flip_flags, global_flags, keep_streams_flags, push_args,
+    video_flags,
 };
 use crate::ffmpeg::try_run_ffmpeg;
 use crate::utils::{get_inputs_and_outputs, get_output};
@@ -32,6 +32,10 @@ pub fn encode(
         && !exists
     {
         bail!("input doesn't exist.");
+    }
+
+    if encode_opts.keep_streams && matches!(encode_opts.video_format, VideoFormat::Mp4) {
+        bail!("Some codecs aren't currently supported by MP4. Choose MKV.");
     }
 
     if input.is_file() {
@@ -211,7 +215,7 @@ fn single_file(
         audio_codec,
         video_format,
         quality,
-        subtitle,
+        keep_streams,
     } = encode_opts;
 
     let mut cmd = Command::new(FFMPEG);
@@ -228,16 +232,12 @@ fn single_file(
         crop_flags(&mut cmd, crop_opts);
     }
 
-    if let Some(ref indexes) = subtitle {
-        map_flags(&mut cmd, indexes);
+    if keep_streams {
+        keep_streams_flags(&mut cmd);
     }
 
     video_flags(&mut cmd, video_codec, quality);
     audio_flags(&mut cmd, audio_codec);
-
-    if subtitle.is_some() {
-        subtitles_flags(&mut cmd, &video_format);
-    }
 
     let output = get_output(input, output, ENCODE)?;
     let output = output.with_extension(video_format.to_string());
@@ -258,7 +258,7 @@ fn multiple_file(
         audio_codec,
         video_format,
         quality,
-        subtitle,
+        keep_streams,
     } = encode_opts;
 
     let mut args = Vec::new();
@@ -280,16 +280,12 @@ fn multiple_file(
             crop_flags(&mut cmd, crop_opts);
         }
 
-        if let Some(ref indexes) = subtitle {
-            map_flags(&mut cmd, indexes);
+        if keep_streams {
+            keep_streams_flags(&mut cmd);
         }
 
         video_flags(&mut cmd, video_codec.clone(), quality);
         audio_flags(&mut cmd, audio_codec.clone());
-
-        if subtitle.is_some() {
-            subtitles_flags(&mut cmd, &video_format);
-        }
 
         let output = output.with_extension(video_format.to_string());
         cmd.arg(output);
