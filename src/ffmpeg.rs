@@ -102,7 +102,7 @@ fn run_ffmpeg(cmd: &mut Command, multi: &MultiProgress) -> Result<()> {
     let status = child.wait()?;
 
     if !status.success() {
-        multi.println(format!("{prefix} failed ({status})"))?;
+        multi.println(format!("'{prefix}' failed ({status})"))?;
         for line in stderr_reader.lines() {
             let line = line?;
             multi.println(line)?;
@@ -113,7 +113,7 @@ fn run_ffmpeg(cmd: &mut Command, multi: &MultiProgress) -> Result<()> {
     }
 
     multi.println(format!(
-        "{prefix} done in {}",
+        "'{prefix}' done in {}",
         HumanDuration(started.elapsed())
     ))?;
 
