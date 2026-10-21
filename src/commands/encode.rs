@@ -34,7 +34,7 @@ pub fn encode(
         bail!("input doesn't exist.");
     }
 
-    if encode_opts.keep_streams && matches!(encode_opts.video_format, VideoFormat::Mp4) {
+    if encode_opts.keep_streams.is_some() && matches!(encode_opts.video_format, VideoFormat::Mp4) {
         bail!("Some codecs aren't currently supported by MP4. Choose MKV.");
     }
 
@@ -232,8 +232,8 @@ fn single_file(
         crop_flags(&mut cmd, crop_opts);
     }
 
-    if keep_streams {
-        keep_streams_flags(&mut cmd);
+    if let Some(subtitle_opt) = keep_streams {
+        keep_streams_flags(&mut cmd, &subtitle_opt);
     }
 
     video_flags(&mut cmd, video_codec, quality);
@@ -280,8 +280,8 @@ fn multiple_file(
             crop_flags(&mut cmd, crop_opts);
         }
 
-        if keep_streams {
-            keep_streams_flags(&mut cmd);
+        if let Some(ref subtitle_opt) = keep_streams {
+            keep_streams_flags(&mut cmd, subtitle_opt);
         }
 
         video_flags(&mut cmd, video_codec.clone(), quality);

@@ -170,8 +170,8 @@ pub struct EncodeOpts {
     pub quality: Option<u64>,
 
     /// Keep all audio and subtitle streams.
-    #[arg(short = 'K', long)]
-    pub keep_streams: bool,
+    #[arg(short = 'K', long, value_enum)]
+    pub keep_streams: Option<SubtitleOpt>,
 }
 
 #[derive(Debug, Subcommand)]
@@ -249,6 +249,12 @@ pub enum VideoFormat {
     /// `mkv` Matroska format.
     #[strum(to_string = "mkv")]
     Mkv,
+}
+
+#[derive(Clone, Debug, ValueEnum)]
+pub enum SubtitleOpt {
+    Copy,
+    Encode,
 }
 
 #[test]

@@ -7,7 +7,8 @@ mod video;
 use std::process::Command;
 
 use crate::args::{
-    AudioCodec, CropCommand, DEFAULT_CQ_AV1, DEFAULT_CRF, DEFAULT_QP_HEVC, OffSet, VideoCodec,
+    AudioCodec, CropCommand, DEFAULT_CQ_AV1, DEFAULT_CRF, DEFAULT_QP_HEVC, OffSet, SubtitleOpt,
+    VideoCodec,
 };
 use crate::push_args;
 
@@ -84,12 +85,16 @@ pub fn flip_flags(cmd: &mut Command) {
     push_args![cmd => ["-display_rotation:v:0", "-90.0"]];
 }
 
-pub fn keep_streams_flags(cmd: &mut Command) {
+pub fn keep_streams_flags(cmd: &mut Command, subtitle_opt: &SubtitleOpt) {
     push_args![cmd => [
         "-map", "0:v",
         "-map", "0:a?",
         "-map", "0:s?",
     ]];
+
+    if matches!(subtitle_opt, SubtitleOpt::Copy) {
+        push_args![cmd => ["-c:s", "copy"]];
+    }
 }
 
 pub fn crop_flags(cmd: &mut Command, crop_opts: &CropCommand) {
