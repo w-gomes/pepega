@@ -103,9 +103,12 @@ fn run_ffmpeg(cmd: &mut Command, multi: &MultiProgress) -> Result<()> {
 
     if !status.success() {
         multi.println(format!("'{prefix}' failed ({status})"))?;
+        tracing::error!(file = prefix, error = %status);
+
         for line in stderr_reader.lines() {
             let line = line?;
-            multi.println(line)?;
+            multi.println(&line)?;
+            tracing::error!(error = line);
         }
         multi.println("----------------------------------\n")?;
         // FIXME: this error is not useful anymore.
