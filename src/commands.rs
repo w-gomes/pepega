@@ -36,7 +36,11 @@ pub fn audio_flags(cmd: &mut Command, audio_codec: AudioCodec) {
             push_args![cmd => ["-c:a", enc.to_string(), "-b:a", "320k"]];
         }
         enc @ AudioCodec::Opus => {
-            push_args![cmd => ["-c:a", enc.to_string(), "-b:a", "192k"]];
+            push_args![cmd => [
+                "-c:a", enc.to_string(),
+                "-af", "aformat=channel_layouts=7.1|5.1|stereo|mono",
+                "-b:a", "192k"
+            ]];
         }
     }
 }
