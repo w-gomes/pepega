@@ -71,7 +71,6 @@ pub fn video_flags(cmd: &mut Command, video_codec: VideoCodec, quality: Option<u
                 "-cq", quality.to_string(),
                 "-b:v", "0",
                 "-preset", "p5",
-                "-level", "4.1",
             ]];
         }
         codec @ VideoCodec::Hevc => {
