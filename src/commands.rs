@@ -50,35 +50,36 @@ pub fn video_flags(cmd: &mut Command, video_codec: VideoCodec, quality: Option<u
         VideoCodec::H264 | VideoCodec::H265 => DEFAULT_CRF,
         VideoCodec::Av1 => DEFAULT_CQ_AV1,
         VideoCodec::Hevc => DEFAULT_QP_HEVC,
+        // Not used.
         VideoCodec::Copy => 0,
     });
 
     match video_codec {
         codec @ VideoCodec::Copy => {
-            push_args![cmd => ["-c:v", codec.to_string()]];
+            push_args![cmd => ["-c:v:0", codec.to_string()]];
         }
         codec @ (VideoCodec::H264 | VideoCodec::H265) => {
             push_args![cmd => [
-                "-c:v", codec.to_string(),
-                "-crf", quality.to_string(),
-                "-preset", "veryfast",
+                "-c:v:0", codec.to_string(),
+                "-crf:v:0", quality.to_string(),
+                "-preset:v:0", "veryfast",
             ]];
         }
         codec @ VideoCodec::Av1 => {
             push_args![cmd => [
-                "-c:v", codec.to_string(),
-                "-rc", "vbr",
-                "-cq", quality.to_string(),
-                "-b:v", "0",
-                "-preset", "p5",
+                "-c:v:0", codec.to_string(),
+                "-rc:v:0", "vbr",
+                "-cq:v:0", quality.to_string(),
+                "-b:v:0", "0",
+                "-preset:v:0", "p5",
             ]];
         }
         codec @ VideoCodec::Hevc => {
             push_args![cmd => [
-                "-c:v", codec.to_string(),
-                "-rc", "constqp",
-                "-qp", quality.to_string(),
-                "-preset", "p5",
+                "-c:v:0", codec.to_string(),
+                "-rc:v:0", "constqp",
+                "-qp:v:0", quality.to_string(),
+                "-preset:v:0", "p5",
             ]];
         }
     }
@@ -93,6 +94,7 @@ pub fn keep_streams_flags(cmd: &mut Command, subtitle_opt: &SubtitleOpt) {
         "-map", "0:v",
         "-map", "0:a?",
         "-map", "0:s?",
+        "-c:v", "copy",
     ]];
 
     if matches!(subtitle_opt, SubtitleOpt::Copy) {
